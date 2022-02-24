@@ -250,7 +250,6 @@ void LSM9DS1::begin() {
     mRes = 0;      
     seaLevelPressure = 1018; //average sea level pressure is 1013.25
     Pressure = 0; // pressure in mbars
-    pressureArray.fill(0.0);
 
     UART0_BAUDRATE_REGISTER = 0x69489ef;
 }
@@ -302,7 +301,7 @@ uint8_t LSM9DS1::readByte(uint8_t address, uint8_t subAddress) {
   Wire1.endTransmission(false);             // Send the Tx buffer, but send a restart to keep connection alive
   Wire1.requestFrom(address, (size_t) 1);   // Read one byte from slave register address 
   data = Wire1.read();                      // Fill Rx buffer with result
-  
+
   return data;                             // Return data read from slave register
 }
 
