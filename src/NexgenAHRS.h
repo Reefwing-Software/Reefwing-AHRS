@@ -27,7 +27,8 @@ class LSM9DS1 {
         uint8_t whoAmIGyro();
         uint8_t whoAmIMag();
         uint8_t whoAmIBaro();
-        float readTemperature();
+        float readGyroTemp();
+        float readBaroTemp();
 
     private:
         void writeByte(uint8_t address, uint8_t subAddress, uint8_t data);

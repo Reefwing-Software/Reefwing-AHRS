@@ -111,17 +111,6 @@
 
 /******************************************************************
  *
- * UART Registers - 
- * ref: https://forum.arduino.cc/t/allowed-baud-rates-on-serial1-in-arduino-nano-33-ble/657247/5
- * 
- ******************************************************************/
-
-#define UARTE0_BASE_ADDR            0x40002000  // As per nRF52840 Product spec - UARTE
-#define UART_BAUDRATE_REG_OFFSET    0x524 // As per nRF52840 Product spec - UARTE
-#define UART0_BAUDRATE_REGISTER     (*(( unsigned int *)(UARTE0_BASE_ADDR + UART_BAUDRATE_REG_OFFSET)))
-
-/******************************************************************
- *
  * Device Addresses - 
  * ref: https://github.com/arduino-libraries/Arduino_LSM9DS1/blob/master/src/LSM9DS1.cpp
  * 
@@ -252,8 +241,6 @@ void LSM9DS1::begin() {
     mRes = 0;      
     seaLevelPressure = 1018; //average sea level pressure is 1013.25
     Pressure = 0; // pressure in mbars
-
-    UART0_BAUDRATE_REGISTER = 0x69489ef;
 }
 
 uint8_t LSM9DS1::whoAmIGyro() {
@@ -270,7 +257,7 @@ uint8_t LSM9DS1::whoAmIBaro() {
     return lps22hb.whoAmI();
 }
 
-float LSM9DS1::readTemperature() {
+float LSM9DS1::readGyroTemp() {
     // x/y/z gyro register data stored here
     uint8_t rawData[2];  
     // Read the two raw data registers sequentially into data array 
@@ -279,6 +266,10 @@ float LSM9DS1::readTemperature() {
     int16_t rawTemp = (((int16_t)rawData[1] << 8) | rawData[0]);  
     // Gyro chip temperature in degrees Centigrade
     return ((float)rawTemp/256.0 + 25.0); 
+}
+
+float LSM9DS1::readBaroTemp() {
+    return lps22hb.readTemperature();
 }
 
 /******************************************************************
