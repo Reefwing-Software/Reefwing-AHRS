@@ -30,6 +30,10 @@ class LSM9DS1 {
         float readTemperature();
 
     private:
+        void writeByte(uint8_t address, uint8_t subAddress, uint8_t data);
+        uint8_t readByte(uint8_t address, uint8_t subAddress);
+        void readBytes(uint8_t address, uint8_t subAddress, uint8_t count, uint8_t * dest);
+
         LPS22HB lps22hb;
         uint8_t OSR;
         uint8_t Gscale;

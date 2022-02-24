@@ -279,3 +279,41 @@ float LSM9DS1::readTemperature() {
     // Gyro chip temperature in degrees Centigrade
     return ((float)rawTemp/256.0 + 25.0); 
 }
+
+/******************************************************************
+ *
+ * I2C Read/Write methods for the LSM9DS1 - 
+ * 
+ ******************************************************************/
+
+void LSM9DS1::writeByte(uint8_t address, uint8_t subAddress, uint8_t data)
+{
+  Wire1.beginTransmission(address);  // Initialize the Tx buffer
+  Wire1.write(subAddress);           // Put slave register address in Tx buffer
+  Wire1.write(data);                 // Put data in Tx buffer
+  Wire1.endTransmission();           // Send the Tx buffer
+}
+
+uint8_t LSM9DS1::readByte(uint8_t address, uint8_t subAddress) {
+  uint8_t data; // `data` will store the register data  
+
+  Wire1.beginTransmission(address);         // Initialize the Tx buffer
+  Wire1.write(subAddress);                  // Put slave register address in Tx buffer
+  Wire1.endTransmission(false);             // Send the Tx buffer, but send a restart to keep connection alive
+  Wire1.requestFrom(address, (size_t) 1);   // Read one byte from slave register address 
+  data = Wire1.read();                      // Fill Rx buffer with result
+  
+  return data;                             // Return data read from slave register
+}
+
+void LSM9DS1::readBytes(uint8_t address, uint8_t subAddress, uint8_t count, uint8_t * dest) {  
+  uint8_t i = 0;
+
+  Wire1.beginTransmission(address);   // Initialize the Tx buffer
+  Wire1.write(subAddress);            // Put slave register address in Tx buffer
+  Wire1.endTransmission(false);       // Send the Tx buffer, but send a restart to keep connection alive
+  Wire1.requestFrom(address, count);  // Read bytes from slave register address 
+  
+  while (Wire1.available()) {
+    dest[i++] = Wire1.read(); }         // Put read results in the Rx buffer
+}
