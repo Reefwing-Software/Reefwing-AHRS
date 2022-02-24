@@ -24,29 +24,34 @@ void setup() {
   Serial.begin(115200);
   while (!Serial);
 
-  Serial.print("LSM9DS1 Accelerometer/gyroscope "); 
-  Serial.print("I AM "); 
-  Serial.print(imu.whoAmIGyro(), HEX); 
-  Serial.print(" I should be "); 
-  Serial.println(0x68, HEX);
+  if (imu.whoAmIGyro() == LSM9DS1XG_WHO_AM_I_VALUE) {
+    Serial.print("LSM9DS1 Accelerometer and Gyroscope is available.");
+    Serial.print("Gyro temperature is ");  
+    Serial.print(imu.readTemperature(), 1);  
+    Serial.println(" degrees C");
+  }
+  else {
+    Serial.println("LSM9DS1 Accelerometer and Gyroscope not found.");
+  }
 
-  Serial.print("LSM9DS1 Magnetometer "); 
-  Serial.print("I AM "); 
-  Serial.print(imu.whoAmIMag(), HEX); 
-  Serial.print(" I should be "); 
-  Serial.println(0x3D, HEX);
+  if (imu.whoAmIMag() == LSM9DS1M_WHO_AM_I_VALUE) {
+    Serial.println("LSM9DS1 Magnetometer is available.");
+  }
+  else {
+    Serial.println("LSM9DS1 Magnetometer not found.");
+  }
 
-  Serial.print("LPS22HB Barometer "); 
-  Serial.print("I AM "); 
-  Serial.print(imu.whoAmIBaro(), HEX); 
-  Serial.print(" I should be "); 
-  Serial.println(0xB1, HEX);
+  if (imu.whoAmIBaro() == LPS22HB_WHO_AM_I_VALUE) {
+    Serial.println("LSM9DS1 Barometer is available.");
+  }
+  else {
+    Serial.println("LSM9DS1 Barometer not found.");
+  }
+
+  
 }
 
 void loop() {
     // put your main code here, to run repeatedly:
-    Serial.print("Gyro temperature is ");  
-    Serial.print(imu.readTemperature(), 1);  
-    Serial.println(" degrees C");
-    delay(1000);
+    
 }

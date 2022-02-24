@@ -76,6 +76,7 @@
 #define LSM9DS1XG_INT_GEN_THS_ZH_G  0x35
 #define LSM9DS1XG_INT_GEN_THS_ZL_G  0x36
 #define LSM9DS1XG_INT_GEN_DUR_G     0x37
+#define LSM9DS1XG_WHO_AM_I_VALUE    0x68
 
 /******************************************************************
  *
@@ -106,6 +107,7 @@
 #define LSM9DS1M_INT_SRC_M          0x31
 #define LSM9DS1M_INT_THS_L_M        0x32
 #define LSM9DS1M_INT_THS_H_M        0x33
+#define LSM9DS1M_WHO_AM_I_VALUE     0x3D
 
 /******************************************************************
  *
