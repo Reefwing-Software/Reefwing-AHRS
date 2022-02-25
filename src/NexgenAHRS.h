@@ -10,14 +10,15 @@
 
   1.0.0 Original Release.           22/02/22
 
+  Credit - LPS22HB Absolute Digital Barometer class 
+           written by Adrien Chapelet for IoThings.
+
 ******************************************************************/
 
 #ifndef NexgenAHRS_h
 #define NexgenAHRS_h
 
 #include <Arduino.h>
-
-#include "LPS22HB.h"
 
 class LSM9DS1 {
     public:
@@ -26,16 +27,13 @@ class LSM9DS1 {
         void begin();
         uint8_t whoAmIGyro();
         uint8_t whoAmIMag();
-        uint8_t whoAmIBaro();
         float readGyroTemp();
-        float readBaroTemp();
 
     private:
         void writeByte(uint8_t address, uint8_t subAddress, uint8_t data);
         uint8_t readByte(uint8_t address, uint8_t subAddress);
         void readBytes(uint8_t address, uint8_t subAddress, uint8_t count, uint8_t * dest);
 
-        LPS22HB lps22hb;
         uint8_t OSR;
         uint8_t Gscale;
         uint8_t Godr;
@@ -47,11 +45,26 @@ class LSM9DS1 {
         uint8_t Modr;
         uint8_t Mmode;  
         float aRes, gRes, mRes; 
-        float seaLevelPressure; 
-        float Pressure;
-        float pressureArray[10];
-        
+};
 
+class LPS22HB {
+public:
+  LPS22HB();
+
+  void begin();
+
+  uint8_t whoAmI();
+  float readTemperature();
+
+  float readPressure();
+  uint32_t readPressureUI();
+  uint32_t readPressureRAW();
+
+private:
+  uint8_t _address;
+  uint8_t read(uint8_t reg);
+  void write(uint8_t reg, uint8_t data);
+  uint8_t status(uint8_t data);
 };
 
 #endif

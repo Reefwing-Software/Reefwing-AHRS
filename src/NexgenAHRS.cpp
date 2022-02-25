@@ -111,6 +111,24 @@
 
 /******************************************************************
  *
+ * Barometer Registers 
+ * 
+ ******************************************************************/
+
+#define LPS22HB_WHO_AM_I        0X0F //Who am I
+#define LPS22HB_RES_CONF        0X1A //Normal (0) or Low current mode (1)
+#define LPS22HB_CTRL_REG1       0X10 //output rate and filter settings
+#define LPS22HB_CTRL_REG2       0X11 //BOOT FIFO_EN STOP_ON_FTH IF_ADD_INC I2C_DIS SWRESET One_Shot
+#define LPS22HB_STATUS_REG      0X27 //Temp or Press data available bits
+#define LPS22HB_PRES_OUT_XL     0X28 //XLSB
+#define LPS22HB_PRES_OUT_L      0X29 //LSB
+#define LPS22HB_PRES_OUT_H      0X2A //MSB
+#define LPS22HB_TEMP_OUT_L      0X2B //LSB
+#define LPS22HB_TEMP_OUT_H      0X2C //MSB
+#define LPS22HB_WHO_AM_I_VALUE  0xB1 // Expected return value of WHO_AM_I register
+
+/******************************************************************
+ *
  * Device Addresses - 
  * ref: https://github.com/arduino-libraries/Arduino_LSM9DS1/blob/master/src/LSM9DS1.cpp
  * 
@@ -222,7 +240,6 @@ LSM9DS1::LSM9DS1() { }
 
 void LSM9DS1::begin() {
     Wire1.begin();
-    lps22hb.begin(LPS22HB_ADDRESS);
     writeByte(LSM9DS1XG_ADDRESS, LSM9DS1XG_CTRL_REG8, 0x05);
     writeByte(LSM9DS1M_ADDRESS, LSM9DS1M_CTRL_REG2_M, 0x0c);
 
@@ -239,8 +256,6 @@ void LSM9DS1::begin() {
     aRes = 0;   // scale resolutions per LSB for the sensors
     gRes = 0;
     mRes = 0;      
-    seaLevelPressure = 1018; //average sea level pressure is 1013.25
-    Pressure = 0; // pressure in mbars
 }
 
 uint8_t LSM9DS1::whoAmIGyro() {
@@ -253,10 +268,6 @@ uint8_t LSM9DS1::whoAmIMag() {
     return readByte(LSM9DS1M_ADDRESS, LSM9DS1M_WHO_AM_I);  
 }
 
-uint8_t LSM9DS1::whoAmIBaro() {
-    return lps22hb.whoAmI();
-}
-
 float LSM9DS1::readGyroTemp() {
     // x/y/z gyro register data stored here
     uint8_t rawData[2];  
@@ -266,10 +277,6 @@ float LSM9DS1::readGyroTemp() {
     int16_t rawTemp = (((int16_t)rawData[1] << 8) | rawData[0]);  
     // Gyro chip temperature in degrees Centigrade
     return ((float)rawTemp/256.0 + 25.0); 
-}
-
-float LSM9DS1::readBaroTemp() {
-    return lps22hb.readTemperature();
 }
 
 /******************************************************************
@@ -308,4 +315,117 @@ void LSM9DS1::readBytes(uint8_t address, uint8_t subAddress, uint8_t count, uint
   
   while (Wire1.available()) {
     dest[i++] = Wire1.read(); }         // Put read results in the Rx buffer
+}
+
+/******************************************************************
+ *
+ * LPS22HB Implementation - 
+ * 
+ ******************************************************************/
+
+LPS22HB::LPS22HB() { }
+
+void LPS22HB::begin() {
+  _address = LPS22HB_ADDRESS;
+  Wire1.begin();
+  write(LPS22HB_RES_CONF, 0x0); // resolution: temp=32, pressure=128
+  write(LPS22HB_CTRL_REG1, 0x00); // one-shot mode
+}
+
+byte LPS22HB::whoAmI() {
+  Wire1.beginTransmission(_address);
+  Wire1.write(LPS22HB_WHO_AM_I);
+  Wire1.endTransmission();
+  Wire1.requestFrom(_address, 1);
+  return Wire1.read();
+}
+
+float LPS22HB::readPressure() {
+  write(LPS22HB_CTRL_REG2, 0x1);
+
+  if (status(0x1) < 0)
+    return 1.23;
+  //delay(50);
+  uint8_t pressOutH = read(LPS22HB_PRES_OUT_H);
+  uint8_t pressOutL = read(LPS22HB_PRES_OUT_L);
+  uint8_t pressOutXL = read(LPS22HB_PRES_OUT_XL);
+
+  long val = ( ((long)pressOutH << 16) | ((long)pressOutL << 8) | (long)pressOutXL );
+  //if (val == 1.00) readPressure();
+  return val/4096.0f;
+}
+
+uint32_t LPS22HB::readPressureRAW() {
+  write(LPS22HB_CTRL_REG2, 0x1);
+
+  if (status(0x1) < 0)
+    return 123;
+  //delay(50);
+  uint8_t pressOutH = read(LPS22HB_PRES_OUT_H);
+  uint8_t pressOutL = read(LPS22HB_PRES_OUT_L);
+  uint8_t pressOutXL = read(LPS22HB_PRES_OUT_XL);
+
+  int32_t val = ( (pressOutH << 16) | (pressOutL << 8) | pressOutXL );
+  val=val+0x400000;
+  //if (val == 1.00) readPressure();
+  return (uint32_t)val;
+}
+
+uint32_t LPS22HB::readPressureUI() {
+  write(LPS22HB_CTRL_REG2, 0x1);
+
+  if (status(0x1) < 0)
+    return 1.23;
+  //delay(50);
+  uint8_t pressOutH = read(LPS22HB_PRES_OUT_H);
+  uint8_t pressOutL = read(LPS22HB_PRES_OUT_L);
+  uint8_t pressOutXL = read(LPS22HB_PRES_OUT_XL);
+
+  uint32_t val = ((pressOutH << 16) | (pressOutL << 8) | pressOutXL );
+  //if (val == 1.00) readPressure();
+  return val/4096;
+}
+
+float LPS22HB::readTemperature() {
+  write(LPS22HB_CTRL_REG2, 0x1);
+  if (status(0x2) < 0)
+    return 4.56;
+
+  uint8_t tempOutH = read(LPS22HB_TEMP_OUT_H);
+  uint8_t tempOutL = read(LPS22HB_TEMP_OUT_L);
+
+  int16_t val = (tempOutH << 8) | (tempOutL & 0xff);
+  return ((float)val)/100.0f;
+}
+
+
+uint8_t LPS22HB::status(uint8_t status) {
+  int count = 1000;
+  uint8_t data = 0xff;
+  do {
+    data = read(LPS22HB_STATUS_REG);
+    --count;
+    if (count < 0)
+      break;
+  } while ((data & status) == 0);
+
+  if (count < 0)
+    return -1;
+  else
+    return 0;
+}
+
+uint8_t LPS22HB::read(uint8_t reg) {
+  Wire1.beginTransmission(_address);
+  Wire1.write(reg);
+  Wire1.endTransmission();
+  Wire1.requestFrom(_address, 1);
+  return Wire1.read();
+}
+
+void LPS22HB::write(uint8_t reg, uint8_t data) {
+  Wire1.beginTransmission(_address);
+  Wire1.write(reg);
+  Wire1.write(data);
+  Wire1.endTransmission();
 }

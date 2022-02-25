@@ -19,10 +19,12 @@
 #define LPS22HB_WHO_AM_I_VALUE      0xB1
 
 LSM9DS1 imu;
+LPS22HB barometer;
 
 void setup() {
   // Initialise the LSM9DS1 IMU
   imu.begin();
+  barometer.begin();
 
   //  Start Serial and wait for connection
   Serial.begin(115200);
@@ -44,9 +46,9 @@ void setup() {
     Serial.println("LSM9DS1 Magnetometer not found.");
   }
 
-  if (imu.whoAmIBaro() == LPS22HB_WHO_AM_I_VALUE) {
+  if (barometer.whoAmI() == LPS22HB_WHO_AM_I_VALUE) {
     Serial.print("LSM9DS1 Barometer is connected. Barometer temperature is ");
-    Serial.print(imu.readBaroTemp(), 1);  
+    Serial.print(barometer.readTemperature(), 1);  
     Serial.println(" degrees C");
   }
   else {
