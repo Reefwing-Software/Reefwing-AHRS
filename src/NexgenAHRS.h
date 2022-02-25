@@ -11,7 +11,8 @@
   1.0.0 Original Release.           22/02/22
 
   Credit - LPS22HB Absolute Digital Barometer class 
-           written by Adrien Chapelet for IoThings.
+           based on work by Adrien Chapelet for IoThings.
+           ref: https://github.com/adrien3d/IO_LPS22HB
 
 ******************************************************************/
 
@@ -25,6 +26,7 @@ class LSM9DS1 {
         LSM9DS1();
 
         void begin();
+        bool connected();
         uint8_t whoAmIGyro();
         uint8_t whoAmIMag();
         float readGyroTemp();
@@ -52,6 +54,7 @@ public:
   LPS22HB();
 
   void begin();
+  bool connected();
 
   uint8_t whoAmI();
   float readTemperature();

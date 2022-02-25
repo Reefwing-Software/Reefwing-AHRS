@@ -268,6 +268,11 @@ uint8_t LSM9DS1::whoAmIMag() {
     return readByte(LSM9DS1M_ADDRESS, LSM9DS1M_WHO_AM_I);  
 }
 
+bool LSM9DS1::connected() {
+  return (whoAmIGyro() == LSM9DS1XG_WHO_AM_I_VALUE &&
+          whoAmIMag() == LSM9DS1M_WHO_AM_I_VALUE);
+}
+
 float LSM9DS1::readGyroTemp() {
     // x/y/z gyro register data stored here
     uint8_t rawData[2];  
@@ -338,6 +343,10 @@ byte LPS22HB::whoAmI() {
   Wire1.endTransmission();
   Wire1.requestFrom(_address, 1);
   return Wire1.read();
+}
+
+bool LPS22HB::connected() {
+  return (whoAmI() == LPS22HB_WHO_AM_I_VALUE);
 }
 
 float LPS22HB::readPressure() {

@@ -16,7 +16,8 @@ LPS22HB KEYWORD1
 begin  KEYWORD2
 whoAmIGyro   KEYWORD2
 whoAmIMag   KEYWORD2
-whoAmIBaro   KEYWORD2
+whoAmI   KEYWORD2
+readGyroTemp    KEYWORD2
 readTemperature	KEYWORD2
 readPressure	KEYWORD2
 readPressureUI	KEYWORD2

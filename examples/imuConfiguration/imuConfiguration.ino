@@ -14,10 +14,6 @@
 
 #include <NexgenAHRS.h>
 
-#define LSM9DS1XG_WHO_AM_I_VALUE    0x68
-#define LSM9DS1M_WHO_AM_I_VALUE     0x3D
-#define LPS22HB_WHO_AM_I_VALUE      0xB1
-
 LSM9DS1 imu;
 LPS22HB barometer;
 
@@ -30,26 +26,21 @@ void setup() {
   Serial.begin(115200);
   while (!Serial);
 
-  if (imu.whoAmIGyro() == LSM9DS1XG_WHO_AM_I_VALUE) {
-    Serial.print("LSM9DS1 Accelerometer and Gyroscope is connected. Gyro chip temperature is ");
+  if (imu.connected()) {
+    Serial.println("LSM9DS1 Accelerometer, Magnetometer and Gyroscope are connected.");
+    Serial.print("Gyro chip temperature is ");
     Serial.print(imu.readGyroTemp(), 1);  
-    Serial.println(" degrees C");
+    Serial.println(" degrees C.");
   }
   else {
-    Serial.println("LSM9DS1 Accelerometer and Gyroscope not found.");
+    Serial.println("LSM9DS1 Accelerometer, Magnetometer and Gyroscope not found.");
   }
 
-  if (imu.whoAmIMag() == LSM9DS1M_WHO_AM_I_VALUE) {
-    Serial.println("LSM9DS1 Magnetometer is connected.");
-  }
-  else {
-    Serial.println("LSM9DS1 Magnetometer not found.");
-  }
-
-  if (barometer.whoAmI() == LPS22HB_WHO_AM_I_VALUE) {
+  if (barometer.connected()) {
+    barometer.readTemperature();  //  discard 1st reading, normally zero.
     Serial.print("LSM9DS1 Barometer is connected. Barometer temperature is ");
     Serial.print(barometer.readTemperature(), 1);  
-    Serial.println(" degrees C");
+    Serial.println(" degrees C.");
   }
   else {
     Serial.println("LSM9DS1 Barometer not found.");
