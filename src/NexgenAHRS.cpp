@@ -244,18 +244,21 @@ void LSM9DS1::begin() {
     writeByte(LSM9DS1M_ADDRESS, LSM9DS1M_CTRL_REG2_M, 0x0c);
 
     OSR = ADC_4096;      // set pressure amd temperature oversample rate
-    Gscale = GFS_245DPS; // gyro full scale
+    //Gscale = GFS_245DPS; // gyro full scale
     Godr = GODR_238Hz;   // gyro data sample rate
     Gbw = GBW_med;       // gyro data bandwidth
-    Ascale = AFS_2G;     // accel full scale
+    //Ascale = AFS_2G;     // accel full scale
     Aodr = AODR_238Hz;   // accel data sample rate
     Abw = ABW_50Hz;      // accel data bandwidth
-    Mscale = MFS_4G;     // mag full scale
+    //Mscale = MFS_4G;     // mag full scale
     Modr = MODR_10Hz;    // mag data sample rate
     Mmode = MMode_HighPerformance;  // magnetometer operation mode
-    aRes = 0;   // scale resolutions per LSB for the sensors
-    gRes = 0;
-    mRes = 0;      
+
+    //  Scale resolutions per LSB for each sensor
+    //  sets aRes, gRes, mRes
+    setAccResolution(AFS_2G);
+    setGyroResolution(GFS_245DPS);
+    setMagResolution(MFS_4G);
 }
 
 uint8_t LSM9DS1::whoAmIGyro() {
@@ -282,6 +285,72 @@ float LSM9DS1::readGyroTemp() {
     int16_t rawTemp = (((int16_t)rawData[1] << 8) | rawData[0]);  
     // Gyro chip temperature in degrees Centigrade
     return ((float)rawTemp/256.0 + 25.0); 
+}
+
+void LSM9DS1::setAccResolution(Ascale ascale) {
+  switch (ascale) {
+    // Possible accelerometer scales (and their register bit settings) are:
+    // 2 Gs (00), 16 Gs (01), 4 Gs (10), and 8 Gs  (11). 
+    case AFS_2G:
+      aRes = 2.0/32768.0;
+      break;
+    case AFS_16G:
+      aRes = 16.0/32768.0;
+      break;
+    case AFS_4G:
+      aRes = 4.0/32768.0;
+      break;
+    case AFS_8G:
+      aRes = 8.0/32768.0;
+      break;
+  }
+}
+
+void LSM9DS1::setGyroResolution(Gscale gscale) {
+  switch (gscale) {
+    // Possible gyro scales (and their register bit settings) are:
+    // 245 DPS (00), 500 DPS (01), and 2000 DPS  (11). 
+    case GFS_245DPS:
+      gRes = 245.0/32768.0;
+      break;
+    case GFS_500DPS:
+      gRes = 500.0/32768.0;
+      break;
+    case GFS_2000DPS:
+      gRes = 2000.0/32768.0;
+      break;
+  }
+}
+
+void LSM9DS1::setMagResolution(Mscale mscale) {
+  switch (mscale) {
+    // Possible magnetometer scales (and their register bit settings) are:
+    // 4 Gauss (00), 8 Gauss (01), 12 Gauss (10) and 16 Gauss (11)
+    case MFS_4G:
+      mRes = 4.0/32768.0;
+      break;
+    case MFS_8G:
+      mRes = 8.0/32768.0;
+      break;
+    case MFS_12G:
+      mRes = 12.0/32768.0;
+      break;
+    case MFS_16G:
+      mRes = 16.0/32768.0;
+      break;
+  }
+}
+
+float LSM9DS1::getAccResolution() {
+  return (1.0 / (aRes * 1000.0));
+}
+
+float LSM9DS1::getGyroResolution() {
+  return (1.0 / (gRes * 1000.0));
+}
+
+float LSM9DS1::getMagResolution() {
+  return (1.0 / (mRes * 1000.0));
 }
 
 /******************************************************************

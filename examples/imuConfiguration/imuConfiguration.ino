@@ -31,6 +31,18 @@ void setup() {
     Serial.print("Gyro chip temperature is ");
     Serial.print(imu.readGyroTemp(), 1);  
     Serial.println(" degrees C.");
+
+    Serial.print("accel sensitivity is "); 
+    Serial.print(imu.getAccResolution()); 
+    Serial.println(" LSB/mg");
+
+    Serial.print("gyro sensitivity is "); 
+    Serial.print(imu.getGyroResolution()); 
+    Serial.println(" LSB/mdps");
+
+    Serial.print("mag sensitivity is "); 
+    Serial.print(imu.getMagResolution()); 
+    Serial.println(" LSB/mGauss");
   }
   else {
     Serial.println("LSM9DS1 Accelerometer, Magnetometer and Gyroscope not found.");

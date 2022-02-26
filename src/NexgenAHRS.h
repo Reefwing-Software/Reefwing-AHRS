@@ -30,6 +30,13 @@ class LSM9DS1 {
         uint8_t whoAmIGyro();
         uint8_t whoAmIMag();
         float readGyroTemp();
+        void setAccResolution(Ascale ascale);
+        void setGyroResolution(Gscale gscale);
+        void setMagResolution(Mscale mscale);
+        float getAccResolution();
+        float getGyroResolution();
+        float getMagResolution();
+
 
     private:
         void writeByte(uint8_t address, uint8_t subAddress, uint8_t data);
@@ -37,13 +44,13 @@ class LSM9DS1 {
         void readBytes(uint8_t address, uint8_t subAddress, uint8_t count, uint8_t * dest);
 
         uint8_t OSR;
-        uint8_t Gscale;
+        //uint8_t Gscale;
         uint8_t Godr;
         uint8_t Gbw;
-        uint8_t Ascale;
+        //uint8_t Ascale;
         uint8_t Aodr;
         uint8_t Abw;
-        uint8_t Mscale;
+        //uint8_t Mscale;
         uint8_t Modr;
         uint8_t Mmode;  
         float aRes, gRes, mRes; 
