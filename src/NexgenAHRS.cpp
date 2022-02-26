@@ -321,15 +321,15 @@ void LSM9DS1::setMagResolution(Mscale mscale) {
 }
 
 float LSM9DS1::getAccResolution() {
-  return (1.0 / (aRes * 1000.0));
+  return (aRes * 1000.0);
 }
 
 float LSM9DS1::getGyroResolution() {
-  return (1.0 / (gRes * 1000.0));
+  return (gRes * 1000.0);
 }
 
 float LSM9DS1::getMagResolution() {
-  return (1.0 / (mRes * 1000.0));
+  return (mRes * 1000.0);
 }
 
 /******************************************************************

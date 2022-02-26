@@ -28,21 +28,21 @@ void setup() {
 
   if (imu.connected()) {
     Serial.println("LSM9DS1 Accelerometer, Magnetometer and Gyroscope are connected.");
-    Serial.print("Gyro chip temperature is ");
+    Serial.print("Gyro chip temperature: ");
     Serial.print(imu.readGyroTemp(), 1);  
-    Serial.println(" degrees C.");
+    Serial.println(" °C.");
 
-    Serial.print("accel sensitivity is "); 
+    Serial.print("Accelerometer sensitivity: "); 
     Serial.print(imu.getAccResolution()); 
-    Serial.println(" LSB/mg");
+    Serial.println(" mg/LSB");
 
-    Serial.print("gyro sensitivity is "); 
+    Serial.print("Gyroscope sensitivity: "); 
     Serial.print(imu.getGyroResolution()); 
-    Serial.println(" LSB/mdps");
+    Serial.println(" mdps/LSB");
 
-    Serial.print("mag sensitivity is "); 
+    Serial.print("Magnetometer sensitivity: "); 
     Serial.print(imu.getMagResolution()); 
-    Serial.println(" LSB/mGauss");
+    Serial.println(" mGauss/LSB");
   }
   else {
     Serial.println("LSM9DS1 Accelerometer, Magnetometer and Gyroscope not found.");
@@ -50,9 +50,9 @@ void setup() {
 
   if (barometer.connected()) {
     barometer.readTemperature();  //  discard 1st reading, normally zero.
-    Serial.print("LSM9DS1 Barometer is connected. Barometer temperature is ");
+    Serial.print("\nLSM9DS1 Barometer is connected. Barometer temperature: ");
     Serial.print(barometer.readTemperature(), 1);  
-    Serial.println(" degrees C.");
+    Serial.println(" °C.");
   }
   else {
     Serial.println("LSM9DS1 Barometer not found.");
