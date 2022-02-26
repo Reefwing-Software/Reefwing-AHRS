@@ -235,9 +235,9 @@ void LSM9DS1::begin() {
 
     //  Scale resolutions per LSB for each sensor
     //  sets aRes, gRes, mRes
-    setAccResolution(AFS_2G);
-    setGyroResolution(GFS_245DPS);
-    setMagResolution(MFS_4G);
+    setAccResolution(Ascale::AFS_2G);
+    setGyroResolution(Gscale::GFS_245DPS);
+    setMagResolution(Mscale::MFS_4G);
 }
 
 uint8_t LSM9DS1::whoAmIGyro() {
@@ -270,16 +270,16 @@ void LSM9DS1::setAccResolution(Ascale ascale) {
   switch (ascale) {
     // Possible accelerometer scales (and their register bit settings) are:
     // 2 Gs (00), 16 Gs (01), 4 Gs (10), and 8 Gs  (11). 
-    case AFS_2G:
+    case Ascale::AFS_2G:
       aRes = 2.0/32768.0;
       break;
-    case AFS_16G:
+    case Ascale::AFS_16G:
       aRes = 16.0/32768.0;
       break;
-    case AFS_4G:
+    case Ascale::AFS_4G:
       aRes = 4.0/32768.0;
       break;
-    case AFS_8G:
+    case Ascale::AFS_8G:
       aRes = 8.0/32768.0;
       break;
   }
@@ -289,13 +289,13 @@ void LSM9DS1::setGyroResolution(Gscale gscale) {
   switch (gscale) {
     // Possible gyro scales (and their register bit settings) are:
     // 245 DPS (00), 500 DPS (01), and 2000 DPS  (11). 
-    case GFS_245DPS:
+    case Gscale::GFS_245DPS:
       gRes = 245.0/32768.0;
       break;
-    case GFS_500DPS:
+    case Gscale::GFS_500DPS:
       gRes = 500.0/32768.0;
       break;
-    case GFS_2000DPS:
+    case Gscale::GFS_2000DPS:
       gRes = 2000.0/32768.0;
       break;
   }
@@ -305,16 +305,16 @@ void LSM9DS1::setMagResolution(Mscale mscale) {
   switch (mscale) {
     // Possible magnetometer scales (and their register bit settings) are:
     // 4 Gauss (00), 8 Gauss (01), 12 Gauss (10) and 16 Gauss (11)
-    case MFS_4G:
+    case Mscale::MFS_4G:
       mRes = 4.0/32768.0;
       break;
-    case MFS_8G:
+    case Mscale::MFS_8G:
       mRes = 8.0/32768.0;
       break;
-    case MFS_12G:
+    case Mscale::MFS_12G:
       mRes = 12.0/32768.0;
       break;
-    case MFS_16G:
+    case Mscale::MFS_16G:
       mRes = 16.0/32768.0;
       break;
   }
