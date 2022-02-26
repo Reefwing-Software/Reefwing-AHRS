@@ -158,13 +158,6 @@
  * 
  ******************************************************************/
 
-enum Ascale {  // set of allowable accel full scale settings
-  AFS_2G = 0,
-  AFS_16G,
-  AFS_4G,
-  AFS_8G
-};
-
 enum Aodr {  // set of allowable gyro sample rates
   AODR_PowerDown = 0,
   AODR_10Hz,
@@ -182,13 +175,6 @@ enum Abw {  // set of allowable accewl bandwidths
   ABW_50Hz
 };
 
-enum Gscale {  // set of allowable gyro full scale settings
-  GFS_245DPS = 0,
-  GFS_500DPS,
-  GFS_NoOp,
-  GFS_2000DPS
-};
-
 enum Godr {  // set of allowable gyro sample rates
   GODR_PowerDown = 0,
   GODR_14_9Hz,
@@ -204,13 +190,6 @@ enum Gbw {   // set of allowable gyro data bandwidths
   GBW_med,      // 29 Hz at Godr = 238 Hz,  40 Hz at Godr = 952 Hz
   GBW_high,     // 63 Hz at Godr = 238 Hz,  58 Hz at Godr = 952 Hz
   GBW_highest   // 78 Hz at Godr = 238 Hz, 100 Hz at Godr = 952 Hz
-};
-
-enum Mscale {  // set of allowable mag full scale settings
-  MFS_4G = 0,
-  MFS_8G,
-  MFS_12G,
-  MFS_16G
 };
 
 enum Mmode {

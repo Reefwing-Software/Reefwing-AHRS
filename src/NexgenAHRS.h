@@ -21,6 +21,39 @@
 
 #include <Arduino.h>
 
+/******************************************************************
+ *
+ * ENUM Class Definitions - 
+ * 
+ ******************************************************************/
+
+enum class Ascale {  // set of allowable accel full scale settings
+  AFS_2G = 0,
+  AFS_16G,
+  AFS_4G,
+  AFS_8G
+};
+
+enum class Gscale {  // set of allowable gyro full scale settings
+  GFS_245DPS = 0,
+  GFS_500DPS,
+  GFS_NoOp,
+  GFS_2000DPS
+};
+
+enum class Mscale {  // set of allowable mag full scale settings
+  MFS_4G = 0,
+  MFS_8G,
+  MFS_12G,
+  MFS_16G
+};
+
+/******************************************************************
+ *
+ * LSM9DS1 Class Definition - 
+ * 
+ ******************************************************************/
+
 class LSM9DS1 {
     public:
         LSM9DS1();
@@ -55,6 +88,12 @@ class LSM9DS1 {
         uint8_t Mmode;  
         float aRes, gRes, mRes; 
 };
+
+/******************************************************************
+ *
+ * LPS22HB Class Definition - 
+ * 
+ ******************************************************************/
 
 class LPS22HB {
 public:
