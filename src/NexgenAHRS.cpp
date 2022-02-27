@@ -234,7 +234,7 @@ void LSM9DS1::begin() {
     Mmode = MMode_HighPerformance;  // magnetometer operation mode
 
     //  Scale resolutions per LSB for each sensor
-    //  sets aRes, gRes, mRes
+    //  sets aRes, gRes, mRes and aScale, gScale, mScale
     setAccResolution(Ascale::AFS_2G);
     setGyroResolution(Gscale::GFS_245DPS);
     setMagResolution(Mscale::MFS_4G);
@@ -267,6 +267,7 @@ float LSM9DS1::readGyroTemp() {
 }
 
 void LSM9DS1::setAccResolution(Ascale ascale) {
+  aScale = static_cast<uint8_t>(ascale);
   switch (ascale) {
     // Possible accelerometer scales (and their register bit settings) are:
     // 2 Gs (00), 16 Gs (01), 4 Gs (10), and 8 Gs  (11). 
@@ -286,6 +287,7 @@ void LSM9DS1::setAccResolution(Ascale ascale) {
 }
 
 void LSM9DS1::setGyroResolution(Gscale gscale) {
+  gScale = static_cast<uint8_t>(gscale);
   switch (gscale) {
     // Possible gyro scales (and their register bit settings) are:
     // 245 DPS (00), 500 DPS (01), and 2000 DPS  (11). 
@@ -302,6 +304,7 @@ void LSM9DS1::setGyroResolution(Gscale gscale) {
 }
 
 void LSM9DS1::setMagResolution(Mscale mscale) {
+  mScale = static_cast<uint8_t>(mscale);
   switch (mscale) {
     // Possible magnetometer scales (and their register bit settings) are:
     // 4 Gauss (00), 8 Gauss (01), 12 Gauss (10) and 16 Gauss (11)
@@ -367,12 +370,12 @@ void LSM9DS1::accelgyrocalLSM9DS1(float * dest1, float * dest2)
   // enable the 3-axes of the gyroscope
   writeByte(LSM9DS1XG_ADDRESS, LSM9DS1XG_CTRL_REG4, 0x38);
   // configure the gyroscope
-  writeByte(LSM9DS1XG_ADDRESS, LSM9DS1XG_CTRL_REG1_G, Godr << 5 | Gscale << 3 | Gbw);
+  writeByte(LSM9DS1XG_ADDRESS, LSM9DS1XG_CTRL_REG1_G, Godr << 5 | gScale << 3 | Gbw);
   delay(200);
   // enable the three axes of the accelerometer 
   writeByte(LSM9DS1XG_ADDRESS, LSM9DS1XG_CTRL_REG5_XL, 0x38);
   // configure the accelerometer-specify bandwidth selection with Abw
-  writeByte(LSM9DS1XG_ADDRESS, LSM9DS1XG_CTRL_REG6_XL, Aodr << 5 | Ascale << 3 | 0x04 |Abw);
+  writeByte(LSM9DS1XG_ADDRESS, LSM9DS1XG_CTRL_REG6_XL, Aodr << 5 | aScale << 3 | 0x04 |Abw);
   delay(200);
   // enable block data update, allow auto-increment during multiple byte read
   writeByte(LSM9DS1XG_ADDRESS, LSM9DS1XG_CTRL_REG8, 0x44);

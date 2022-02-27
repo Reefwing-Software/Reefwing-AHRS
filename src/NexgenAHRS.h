@@ -23,7 +23,7 @@
 
 /******************************************************************
  *
- * ENUM Class Definitions - 
+ * ENUM Class & Struct Definitions - 
  * 
  ******************************************************************/
 
@@ -99,6 +99,7 @@ class LSM9DS1 {
         uint8_t Modr;
         uint8_t Mmode;  
         float aRes, gRes, mRes; 
+        uint8_t aScale, gScale, mScale;
 };
 
 /******************************************************************
