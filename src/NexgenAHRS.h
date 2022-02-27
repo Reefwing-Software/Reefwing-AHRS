@@ -55,7 +55,7 @@ struct SelfTestResults {
   float accdx;
   float accdy;
   float accdz;
-}
+};
 
 /******************************************************************
  *
