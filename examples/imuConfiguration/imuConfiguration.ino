@@ -18,7 +18,7 @@ LSM9DS1 imu;
 LPS22HB barometer;
 
 void setup() {
-  // Initialise the LSM9DS1 IMU
+  // Initialise the LSM9DS1 IMU and LPS22HB Barometer
   imu.begin();
   barometer.begin();
 
@@ -30,7 +30,7 @@ void setup() {
     Serial.println("LSM9DS1 Accelerometer, Magnetometer and Gyroscope are connected.");
     Serial.print("Gyro chip temperature: ");
     Serial.print(imu.readGyroTemp(), 1);  
-    Serial.println(" °C.");
+    Serial.println("°C.");
 
     Serial.print("Accelerometer sensitivity: "); 
     Serial.print(imu.getAccResolution()); 
@@ -52,7 +52,7 @@ void setup() {
     barometer.readTemperature();  //  discard 1st reading, normally zero.
     Serial.print("\nLSM9DS1 Barometer is connected. Barometer temperature: ");
     Serial.print(barometer.readTemperature(), 1);  
-    Serial.println(" °C.");
+    Serial.println("°C.");
   }
   else {
     Serial.println("LSM9DS1 Barometer not found.");

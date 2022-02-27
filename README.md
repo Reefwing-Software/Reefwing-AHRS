@@ -46,4 +46,22 @@ An accelerometer is an electromechanical device used to measure acceleration for
 
 A magnetometer is an instrument used for measuring magnetic forces, and in our context, the earth’s magnetism. The Earth’s magnetic field is a 3-dimensional vector that, like gravity, can be used to determine long-term orientation. The typical magnitude of the Earth’s magnetic field is between 20 µT and 70 µT.
 
- 
+ ## Examples
+
+ ### 1. IMU Configuration
+
+The `imuConfig.ino` sketch will test if the gyroscope, magnetometer and accelerometer are connected via I2C. It does this by reading the value of the `WHO AM I` register and comparing this with the expected value. The expected values are defined as follows for the gyro/accelerometer, magnetometer and barometer. Note that a barometer is only fitted to the Nano 33 BLE SENSE board not the base Nano 33 BLE.
+
+```c++
+#define LSM9DS1XG_WHO_AM_I_VALUE    0x68
+#define LSM9DS1M_WHO_AM_I_VALUE     0x3D
+#define LPS22HB_WHO_AM_I_VALUE      0xB1
+```
+
+If the LSM9DS1 IMU is connected, the sketch will print out the Gyro chip temperature and default sensitivities for the three IMU sensors. The linear acceleration sensitivity is given in units of mg/LSB. This means milli-G's (1G = 9.8ms^-2) per Least Significant Bit. This is the smallest value that the sensor can return. Similarly, magnetic sensitivity is given in mGauss/LSB and angular rate sensitivity is mdps (milli degrees per second)/LSB. The sensitivity of the sensors depends on the full scale value selected (ref: Table 3 in the [LSM9DS1 Data Sheet](https://www.st.com/resource/en/datasheet/lsm9ds1.pdf)).
+
+An angular rate gyroscope is device that produces a positive-going digital output for counterclockwise rotation around the axis considered. Sensitivity describes the gain of the sensor. This value changes very little over temperature and time.
+Magnetic sensor sensitivity also describes the gain of the sensor. 
+
+### 2. Self Test and Calibration
+

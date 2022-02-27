@@ -48,6 +48,15 @@ enum class Mscale {  // set of allowable mag full scale settings
   MFS_16G
 };
 
+struct SelfTestResults {
+  float gyrodx;
+  float gyrody;
+  float gyrodz;
+  float accdx;
+  float accdy;
+  float accdz;
+}
+
 /******************************************************************
  *
  * LSM9DS1 Class Definition - 
@@ -69,12 +78,15 @@ class LSM9DS1 {
         float getAccResolution();
         float getGyroResolution();
         float getMagResolution();
+        
+        SelfTestResults selfTest();
 
 
     private:
         void writeByte(uint8_t address, uint8_t subAddress, uint8_t data);
         uint8_t readByte(uint8_t address, uint8_t subAddress);
         void readBytes(uint8_t address, uint8_t subAddress, uint8_t count, uint8_t * dest);
+        void accelgyrocalLSM9DS1(float * dest1, float * dest2);
 
         uint8_t OSR;
         //uint8_t Gscale;
