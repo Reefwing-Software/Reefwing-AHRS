@@ -57,6 +57,12 @@ struct SelfTestResults {
   float accdz;
 };
 
+struct BiasOffsets {
+  float gyroBias[3]; 
+  float accelBias[3];  
+  float magBias[3]; 
+};
+
 /******************************************************************
  *
  * LSM9DS1 Class Definition - 
@@ -78,28 +84,24 @@ class LSM9DS1 {
         float getAccResolution();
         float getGyroResolution();
         float getMagResolution();
+        void calibrateAccGyro();
+        void calibrateMag();
         
         SelfTestResults selfTest();
+        BiasOffsets getBiasOffsets();
 
 
     private:
         void writeByte(uint8_t address, uint8_t subAddress, uint8_t data);
         uint8_t readByte(uint8_t address, uint8_t subAddress);
         void readBytes(uint8_t address, uint8_t subAddress, uint8_t count, uint8_t * dest);
-        void setBiasOffsets(float * dest1, float * dest2);
+        void setBiasOffsets(float *dest1, float *dest2);
+        void setMagneticBias(float *dest1);
 
-        uint8_t OSR;
-        //uint8_t Gscale;
-        uint8_t Godr;
-        uint8_t Gbw;
-        //uint8_t Ascale;
-        uint8_t Aodr;
-        uint8_t Abw;
-        //uint8_t Mscale;
-        uint8_t Modr;
-        uint8_t Mmode;  
-        float aRes, gRes, mRes; 
+        uint8_t OSR, Godr, Gbw, Aodr, Abw, Modr, Mmode;  
         uint8_t aScale, gScale, mScale;
+        float aRes, gRes, mRes; 
+        float gyroBias[3] = {0, 0, 0}, accelBias[3] = {0, 0, 0},  magBias[3] = {0, 0, 0}; 
 };
 
 /******************************************************************

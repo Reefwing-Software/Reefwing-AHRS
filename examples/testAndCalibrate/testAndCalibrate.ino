@@ -16,6 +16,7 @@
 
 LSM9DS1 imu;
 SelfTestResults results;
+BiasOffsets biasOffsets;
 
 bool sensorInRange(float x, float y, float z, float min, float max) {
   return ((min <= x && x <= max) &&
@@ -35,7 +36,7 @@ void setup() {
   if (imu.connected()) {
       results = imu.selfTest();
 
-      Serial.println("Gyro SELF TEST");
+      Serial.println("Gyroscope SELF TEST");
       Serial.println("Place the Nano 33 BLE on a flat surface and don't move it.");
       Serial.print("x-axis: "); 
       Serial.print(results.gyrodx); 
@@ -80,10 +81,39 @@ void setup() {
         Serial.println("ACCELEROMETER FAILED SELF-TEST");
       }
 
-      
+      Serial.println("\nIMU CALIBRATION");
+
+      // Calibrate gyroscope and accelerometer. Load offset biases into the bias registers
+      imu.calibrateAccGyro();
+
+      Serial.println("\nACCELEROMETER & GYROSCOPE CALIBRATION COMPLETE.");
+
+      Serial.println("\nMAGNETOMETER CALIBRATION:");
+      Serial.println("Wave the Nano 33 BLE in a vertical figure of eight until calibration is complete.");
+      imu.calibrateMag();
+      Serial.println("\nMAGNETOMETER CALIBRATION COMPLETE.");
+
+      biasOffsets = imu.getBiasOffsets();
+
+      Serial.println("\nAccelerometer Offset Bias (mg):"); 
+      Serial.println(1000.0 * biasOffsets.accelBias[0]); 
+      Serial.println(1000.0 * biasOffsets.accelBias[1]); 
+      Serial.println(1000.0 * biasOffsets.accelBias[2]);
+
+      Serial.println("Gyroscope Offset Bias (dps):"); 
+      Serial.println(biasOffsets.gyroBias[0]); 
+      Serial.println(biasOffsets.gyroBias[1]); 
+      Serial.println(biasOffsets.gyroBias[2]);
+
+      Serial.println("Magnetometer Offset Bias (mG):"); 
+      Serial.println(1000.0 * biasOffsets.magBias[0]); 
+      Serial.println(1000.0 * biasOffsets.magBias[1]); 
+      Serial.println(1000.0 * biasOffsets.magBias[2]); 
+
+      Serial.println("\nLSM9DS1 IMU CALIBRATION COMPLETE.");
   }
   else {
-    Serial.println("LSM9DS1 Accelerometer, Magnetometer and Gyroscope not found.");
+    Serial.println("LSM9DS1 IMU not found.");
   }
 
 }

@@ -223,13 +223,10 @@ void LSM9DS1::begin() {
     writeByte(LSM9DS1M_ADDRESS, LSM9DS1M_CTRL_REG2_M, 0x0c);
 
     OSR = ADC_4096;      // set pressure amd temperature oversample rate
-    //Gscale = GFS_245DPS; // gyro full scale
     Godr = GODR_238Hz;   // gyro data sample rate
     Gbw = GBW_med;       // gyro data bandwidth
-    //Ascale = AFS_2G;     // accel full scale
     Aodr = AODR_238Hz;   // accel data sample rate
     Abw = ABW_50Hz;      // accel data bandwidth
-    //Mscale = MFS_4G;     // mag full scale
     Modr = MODR_10Hz;    // mag data sample rate
     Mmode = MMode_HighPerformance;  // magnetometer operation mode
 
@@ -359,9 +356,27 @@ SelfTestResults LSM9DS1::selfTest() {
   return results;
 }
 
+void LSM9DS1::calibrateAccGyro() {
+  setBiasOffsets(gyroBias, accelBias);
+}
+
+void LSM9DS1::calibrateMag() {
+  setMagneticBias(magBias);
+}
+
+BiasOffsets LSM9DS1::getBiasOffsets() {
+  BiasOffsets biasOffsets;
+
+  biasOffsets.accelBias = accelBias;
+  biasOffsets.gyroBias = gyroBias;
+  biasOffsets.magBias = magBias;
+
+  return biasOffsets;
+}
+
 // Function which accumulates gyro and accelerometer data after device initialization. It calculates the average
 // of the at-rest readings and then loads the resulting offsets into accelerometer and gyro bias registers.
-void LSM9DS1::setBiasOffsets(float * dest1, float * dest2) {  
+void LSM9DS1::setBiasOffsets(float* dest1, float* dest2) {  
   uint8_t data[6] = {0, 0, 0, 0, 0, 0};
   int32_t gyro_bias[3] = {0, 0, 0}, accel_bias[3] = {0, 0, 0};
   uint16_t samples, index;
@@ -405,9 +420,9 @@ void LSM9DS1::setBiasOffsets(float * dest1, float * dest2) {
   gyro_bias[1] /= samples; 
   gyro_bias[2] /= samples; 
 
-  dest1[0] = (float)gyro_bias[0]*gRes;  // Properly scale the data to get deg/s
-  dest1[1] = (float)gyro_bias[1]*gRes;
-  dest1[2] = (float)gyro_bias[2]*gRes;
+  dest1[0] = (float)gyro_bias[0] * gRes;  // Properly scale the data to get deg/s
+  dest1[1] = (float)gyro_bias[1] * gRes;
+  dest1[2] = (float)gyro_bias[2] * gRes;
 
   c = readByte(LSM9DS1XG_ADDRESS, LSM9DS1XG_CTRL_REG9);
   writeByte(LSM9DS1XG_ADDRESS, LSM9DS1XG_CTRL_REG9, c & ~0x02);   //Disable gyro FIFO  
@@ -443,14 +458,60 @@ void LSM9DS1::setBiasOffsets(float * dest1, float * dest2) {
   if (accel_bias[2] > 0L) {accel_bias[2] -= (int32_t) (1.0/aRes);}  // Remove gravity from the z-axis accelerometer bias calculation
   else {accel_bias[2] += (int32_t) (1.0/aRes);}
 
-  dest2[0] = (float)accel_bias[0]*aRes;  // Properly scale the data to get g
-  dest2[1] = (float)accel_bias[1]*aRes;
-  dest2[2] = (float)accel_bias[2]*aRes;
+  dest2[0] = (float)accel_bias[0] * aRes;  // Properly scale the data to get g
+  dest2[1] = (float)accel_bias[1] * aRes;
+  dest2[2] = (float)accel_bias[2] * aRes;
 
   c = readByte(LSM9DS1XG_ADDRESS, LSM9DS1XG_CTRL_REG9);
   writeByte(LSM9DS1XG_ADDRESS, LSM9DS1XG_CTRL_REG9, c & ~0x02);   //Disable accel FIFO  
   delay(50);
   writeByte(LSM9DS1XG_ADDRESS, LSM9DS1XG_FIFO_CTRL, 0x00);  // Enable accel bypass mode
+}
+
+void setMagneticBias(float *dest1) {
+  uint8_t data[6]; // data array to hold mag x, y, z, data
+  uint16_t index = 0, sample_count = 128;
+  int32_t mag_bias[3] = {0, 0, 0};
+  int16_t mag_max[3] = {0, 0, 0}, mag_min[3] = {0, 0, 0};
+
+  // configure the magnetometer-enable temperature compensation of mag data
+  writeByte(LSM9DS1M_ADDRESS, LSM9DS1M_CTRL_REG1_M, 0x80 | Mmode << 5 | Modr << 2); // select x,y-axis mode
+  writeByte(LSM9DS1M_ADDRESS, LSM9DS1M_CTRL_REG2_M, mScale << 5 ); // select mag full scale
+  writeByte(LSM9DS1M_ADDRESS, LSM9DS1M_CTRL_REG3_M, 0x00 ); // continuous conversion mode
+  writeByte(LSM9DS1M_ADDRESS, LSM9DS1M_CTRL_REG4_M, Mmode << 2 ); // select z-axis mode
+  writeByte(LSM9DS1M_ADDRESS, LSM9DS1M_CTRL_REG5_M, 0x40 ); // select block update mode
+
+  delay(4000);
+
+  for (index = 0; index < sample_count; index++) {
+    int16_t mag_temp[3] = {0, 0, 0};
+    
+    readBytes(LSM9DS1M_ADDRESS, LSM9DS1M_OUT_X_L_M, 6, &data[0]);  // Read the six raw data registers into data array
+    mag_temp[0] = (int16_t) (((int16_t)data[1] << 8) | data[0]) ;   // Form signed 16-bit integer for each sample in FIFO
+    mag_temp[1] = (int16_t) (((int16_t)data[3] << 8) | data[2]) ;
+    mag_temp[2] = (int16_t) (((int16_t)data[5] << 8) | data[4]) ;
+    for (int jj = 0; jj < 3; jj++) {
+      if(mag_temp[jj] > mag_max[jj]) mag_max[jj] = mag_temp[jj];
+      if(mag_temp[jj] < mag_min[jj]) mag_min[jj] = mag_temp[jj];
+    }
+    delay(105);  // at 10 Hz ODR, new mag data is available every 100 ms
+  }
+
+  mag_bias[0]  = (mag_max[0] + mag_min[0])/2;  // get average x mag bias in counts
+  mag_bias[1]  = (mag_max[1] + mag_min[1])/2;  // get average y mag bias in counts
+  mag_bias[2]  = (mag_max[2] + mag_min[2])/2;  // get average z mag bias in counts
+
+  dest1[0] = (float) mag_bias[0] * mRes;  // save mag biases in G for main program
+  dest1[1] = (float) mag_bias[1] * mRes;   
+  dest1[2] = (float) mag_bias[2] * mRes;          
+
+  //write biases to accelerometermagnetometer offset registers as counts);
+  writeByte(LSM9DS1M_ADDRESS, LSM9DS1M_OFFSET_X_REG_L_M, (int16_t) mag_bias[0]  & 0xFF);
+  writeByte(LSM9DS1M_ADDRESS, LSM9DS1M_OFFSET_X_REG_H_M, ((int16_t)mag_bias[0] >> 8) & 0xFF);
+  writeByte(LSM9DS1M_ADDRESS, LSM9DS1M_OFFSET_Y_REG_L_M, (int16_t) mag_bias[1] & 0xFF);
+  writeByte(LSM9DS1M_ADDRESS, LSM9DS1M_OFFSET_Y_REG_H_M, ((int16_t)mag_bias[1] >> 8) & 0xFF);
+  writeByte(LSM9DS1M_ADDRESS, LSM9DS1M_OFFSET_Z_REG_L_M, (int16_t) mag_bias[2] & 0xFF);
+  writeByte(LSM9DS1M_ADDRESS, LSM9DS1M_OFFSET_Z_REG_H_M, ((int16_t)mag_bias[2] >> 8) & 0xFF);
 }
 
 /******************************************************************

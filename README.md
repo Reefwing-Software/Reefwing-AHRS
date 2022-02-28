@@ -69,7 +69,7 @@ Before you use an IMU for the first time, you need to calibrate it. The results 
 
 #### 2.1 Gyroscope and Accelerometer
 
-The LSM9DS1 includes a self test function that is not particularly well documented. To start the Gyro self-test, control register 10, bit ST_G needs to be set to 1. Similarly for the accelerometer, control register 10, bit ST_XL is set. The Nexgen AHRS library looks after this in the `selfTest` method. It calculates the average of the IMU at-rest readings and then loads these resulting offsets into the accelerometer and gyroscope bias registers.
+The LSM9DS1 includes a self test function that is not particularly well documented. To start the Gyro self-test, control register 10, bit ST_G needs to be set to 1. For the accelerometer, control register 10, bit ST_XL is set. The Nexgen AHRS library looks after this in the `selfTest` method. It calculates the average of the IMU at-rest readings and then loads these resulting offsets into the accelerometer and gyroscope bias registers.
 
 An accelerometer in a steady state on a horizontal surface should measure 0 g on both the X-axis and Y-axis, whereas the Z-axis should measure 1 g. Ideally, the output is in the middle of the dynamic range of the sensor. A deviation from the ideal value is called a zero-g offset. Similarly, the gyro zero-rate level describes the actual output signal if there is no angular rate present and zero-gauss level offset describes the deviation of an actual output signal from the
 ideal output if no magnetic field is present.
@@ -85,6 +85,21 @@ From the [LSM9DS1 Data Sheet](https://www.st.com/resource/en/datasheet/lsm9ds1.p
 ```
 
 This highlights the need for calibration. An uncorrected gyro offset of 30 degrees per second is material!
+
+The results of the `selfTest()` function are loaded into a data structure, `SelfTestResults`, which is defined as:
+
+```c++
+struct SelfTestResults {
+  float gyrodx;
+  float gyrody;
+  float gyrodz;
+  float accdx;
+  float accdy;
+  float accdz;
+};
+```
+
+These results are compared with the expected ranges for the sensors and passed  
 
 #### 2.2 Magnetometer
 
