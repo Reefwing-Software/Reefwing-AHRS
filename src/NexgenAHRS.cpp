@@ -361,11 +361,11 @@ SelfTestResults LSM9DS1::selfTest() {
 
 // Function which accumulates gyro and accelerometer data after device initialization. It calculates the average
 // of the at-rest readings and then loads the resulting offsets into accelerometer and gyro bias registers.
-void LSM9DS1::accelgyrocalLSM9DS1(float * dest1, float * dest2)
+void LSM9DS1::setBiasOffsets(float * dest1, float * dest2)
 {  
   uint8_t data[6] = {0, 0, 0, 0, 0, 0};
   int32_t gyro_bias[3] = {0, 0, 0}, accel_bias[3] = {0, 0, 0};
-  uint16_t samples, ii;
+  uint16_t samples, index;
 
   // enable the 3-axes of the gyroscope
   writeByte(LSM9DS1XG_ADDRESS, LSM9DS1XG_CTRL_REG4, 0x38);
@@ -389,8 +389,9 @@ void LSM9DS1::accelgyrocalLSM9DS1(float * dest1, float * dest2)
 
   samples = (readByte(LSM9DS1XG_ADDRESS, LSM9DS1XG_FIFO_SRC) & 0x2F); // Read number of stored samples
 
-  for(ii = 0; ii < samples ; ii++) {            // Read the gyro data stored in the FIFO
+  for(index = 0; index < samples ; index++) {            // Read the gyro data stored in the FIFO
     int16_t gyro_temp[3] = {0, 0, 0};
+
     readBytes(LSM9DS1XG_ADDRESS, LSM9DS1XG_OUT_X_L_G, 6, &data[0]);
     gyro_temp[0] = (int16_t) (((int16_t)data[1] << 8) | data[0]); // Form signed 16-bit integer for each sample in FIFO
     gyro_temp[1] = (int16_t) (((int16_t)data[3] << 8) | data[2]);
