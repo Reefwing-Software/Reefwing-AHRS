@@ -341,17 +341,17 @@ SelfTestResults LSM9DS1::selfTest() {
   float gyro_noST[3] = {0.0, 0.0, 0.0}, gyro_ST[3] = {0.0, 0.0, 0.0};
 
   writeByte(LSM9DS1XG_ADDRESS, LSM9DS1XG_CTRL_REG10,   0x00); // disable self test
-  accelgyrocalLSM9DS1(gyro_noST, accel_noST);
+  setBiasOffsets(gyro_noST, accel_noST);
   writeByte(LSM9DS1XG_ADDRESS, LSM9DS1XG_CTRL_REG10,   0x05); // enable gyro/accel self test
-  accelgyrocalLSM9DS1(gyro_ST, accel_ST);
+  setBiasOffsets(gyro_ST, accel_ST);
 
   results.gyrodx = (gyro_ST[0] - gyro_noST[0]);
   results.gyrody = (gyro_ST[1] - gyro_noST[1]);
   results.gyrodz = (gyro_ST[2] - gyro_noST[2]);
 
-  results.accdx = 1000.*(accel_ST[0] - accel_noST[0]);
-  results.accdy = 1000.*(accel_ST[1] - accel_noST[1]);
-  results.accdz = 1000.*(accel_ST[2] - accel_noST[2]);
+  results.accdx = 1000.0 * (accel_ST[0] - accel_noST[0]);
+  results.accdy = 1000.0 * (accel_ST[1] - accel_noST[1]);
+  results.accdz = 1000.0 * (accel_ST[2] - accel_noST[2]);
 
   writeByte(LSM9DS1XG_ADDRESS, LSM9DS1XG_CTRL_REG10,   0x00); // disable self test
   delay(200);
@@ -361,8 +361,7 @@ SelfTestResults LSM9DS1::selfTest() {
 
 // Function which accumulates gyro and accelerometer data after device initialization. It calculates the average
 // of the at-rest readings and then loads the resulting offsets into accelerometer and gyro bias registers.
-void LSM9DS1::setBiasOffsets(float * dest1, float * dest2)
-{  
+void LSM9DS1::setBiasOffsets(float * dest1, float * dest2) {  
   uint8_t data[6] = {0, 0, 0, 0, 0, 0};
   int32_t gyro_bias[3] = {0, 0, 0}, accel_bias[3] = {0, 0, 0};
   uint16_t samples, index;
@@ -389,7 +388,7 @@ void LSM9DS1::setBiasOffsets(float * dest1, float * dest2)
 
   samples = (readByte(LSM9DS1XG_ADDRESS, LSM9DS1XG_FIFO_SRC) & 0x2F); // Read number of stored samples
 
-  for(index = 0; index < samples ; index++) {            // Read the gyro data stored in the FIFO
+  for (index = 0; index < samples ; index++) {            // Read the gyro data stored in the FIFO
     int16_t gyro_temp[3] = {0, 0, 0};
 
     readBytes(LSM9DS1XG_ADDRESS, LSM9DS1XG_OUT_X_L_G, 6, &data[0]);
@@ -424,8 +423,9 @@ void LSM9DS1::setBiasOffsets(float * dest1, float * dest2)
 
   samples = (readByte(LSM9DS1XG_ADDRESS, LSM9DS1XG_FIFO_SRC) & 0x2F); // Read number of stored samples
 
-  for(ii = 0; ii < samples ; ii++) {            // Read the accel data stored in the FIFO
+  for (index = 0; index < samples ; index++) {            // Read the accel data stored in the FIFO
     int16_t accel_temp[3] = {0, 0, 0};
+
     readBytes(LSM9DS1XG_ADDRESS, LSM9DS1XG_OUT_X_L_XL, 6, &data[0]);
     accel_temp[0] = (int16_t) (((int16_t)data[1] << 8) | data[0]); // Form signed 16-bit integer for each sample in FIFO
     accel_temp[1] = (int16_t) (((int16_t)data[3] << 8) | data[2]);
@@ -440,7 +440,7 @@ void LSM9DS1::setBiasOffsets(float * dest1, float * dest2)
   accel_bias[1] /= samples; 
   accel_bias[2] /= samples; 
 
-  if(accel_bias[2] > 0L) {accel_bias[2] -= (int32_t) (1.0/aRes);}  // Remove gravity from the z-axis accelerometer bias calculation
+  if (accel_bias[2] > 0L) {accel_bias[2] -= (int32_t) (1.0/aRes);}  // Remove gravity from the z-axis accelerometer bias calculation
   else {accel_bias[2] += (int32_t) (1.0/aRes);}
 
   dest2[0] = (float)accel_bias[0]*aRes;  // Properly scale the data to get g

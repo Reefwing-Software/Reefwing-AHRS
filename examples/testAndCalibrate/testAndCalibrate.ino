@@ -20,7 +20,7 @@ SelfTestResults results;
 bool sensorInRange(float x, float y, float z, float min, float max) {
   return ((min <= x && x <= max) &&
           (min <= y && y <= max) &&
-          (min <= z && z <= max) &&
+          (min <= z && z <= max)
          );
 }
 
@@ -51,7 +51,7 @@ void setup() {
 
       Serial.println("Gyroscope x, y and z axis expected range: 20 - 250 dps");
 
-      if sensorInRange(results.gyrodx, results.gyrody, results.gyrodz, 20.0, 250.0) {
+      if (sensorInRange(results.gyrodx, results.gyrody, results.gyrodz, 20.0, 250.0)) {
         Serial.println("GYROSCOPE PASSED SELF-TEST");
       }
       else {
@@ -73,7 +73,7 @@ void setup() {
 
       Serial.println("Accelerometer x, y, and z axis expected range: 60 - 1700 mg");
 
-      if sensorInRange(results.accdx, results.accdy, results.accdz, 60.0, 1700.0) {
+      if (sensorInRange(results.accdx, results.accdy, results.accdz, 60.0, 1700.0)) {
         Serial.println("ACCELEROMETER PASSED SELF-TEST");
       }
       else {
