@@ -364,12 +364,17 @@ void LSM9DS1::calibrateMag() {
   setMagneticBias(magBias);
 }
 
+// Function to copy 'len' elements from 'src' to 'dst'
+void LSM9DS1::copyArray(float* src, float* dst, int len) {
+    memcpy(dst, src, sizeof(src[0])*len);
+}
+
 BiasOffsets LSM9DS1::getBiasOffsets() {
   BiasOffsets biasOffsets;
 
-  biasOffsets.accelBias = accelBias;
-  biasOffsets.gyroBias = gyroBias;
-  biasOffsets.magBias = magBias;
+  copyArray(accelBias, biasOffsets.accelBias, 3);
+  copyArray(gyroBias, biasOffsets.gyroBias, 3);
+  copyArray(magBias, biasOffsets.magBias, 3);
 
   return biasOffsets;
 }
@@ -468,7 +473,7 @@ void LSM9DS1::setBiasOffsets(float* dest1, float* dest2) {
   writeByte(LSM9DS1XG_ADDRESS, LSM9DS1XG_FIFO_CTRL, 0x00);  // Enable accel bypass mode
 }
 
-void setMagneticBias(float *dest1) {
+void LSM9DS1::setMagneticBias(float *dest1) {
   uint8_t data[6]; // data array to hold mag x, y, z, data
   uint16_t index = 0, sample_count = 128;
   int32_t mag_bias[3] = {0, 0, 0};

@@ -94,9 +94,10 @@ class LSM9DS1 {
     private:
         void writeByte(uint8_t address, uint8_t subAddress, uint8_t data);
         uint8_t readByte(uint8_t address, uint8_t subAddress);
-        void readBytes(uint8_t address, uint8_t subAddress, uint8_t count, uint8_t * dest);
-        void setBiasOffsets(float *dest1, float *dest2);
-        void setMagneticBias(float *dest1);
+        void readBytes(uint8_t address, uint8_t subAddress, uint8_t count, uint8_t* dest);
+        void setBiasOffsets(float* dest1, float* dest2);
+        void setMagneticBias(float* dest1);
+        void copyArray(float* src, float* dst, int len);
 
         uint8_t OSR, Godr, Gbw, Aodr, Abw, Modr, Mmode;  
         uint8_t aScale, gScale, mScale;
