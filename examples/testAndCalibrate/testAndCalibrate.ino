@@ -100,12 +100,12 @@ void setup() {
       Serial.println(1000.0 * biasOffsets.accelBias[1]); 
       Serial.println(1000.0 * biasOffsets.accelBias[2]);
 
-      Serial.println("Gyroscope Offset Bias (dps):"); 
+      Serial.println("\nGyroscope Offset Bias (dps):"); 
       Serial.println(biasOffsets.gyroBias[0]); 
       Serial.println(biasOffsets.gyroBias[1]); 
       Serial.println(biasOffsets.gyroBias[2]);
 
-      Serial.println("Magnetometer Offset Bias (mG):"); 
+      Serial.println("\nMagnetometer Offset Bias (mG):"); 
       Serial.println(1000.0 * biasOffsets.magBias[0]); 
       Serial.println(1000.0 * biasOffsets.magBias[1]); 
       Serial.println(1000.0 * biasOffsets.magBias[2]); 

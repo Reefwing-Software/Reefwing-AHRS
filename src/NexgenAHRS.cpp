@@ -10,6 +10,13 @@
 
   1.0.0 Original Release.           12/02/22
 
+  Credit - LPS22HB Absolute Digital Barometer class 
+           based on work by Adrien Chapelet for IoThings.
+           ref: https://github.com/adrien3d/IO_LPS22HB
+         - LSM9DS1 Class borrows heavily from the 
+           Kris Winer sketch LSM9DS1_BasicAHRS_Nano33.ino
+           ref: https://github.com/kriswiner/LSM9DS1
+
 ******************************************************************/
 
 #include <Arduino.h>
@@ -111,25 +118,25 @@
 
 /******************************************************************
  *
- * Barometer Registers 
+ * Barometer Registers -
  * 
  ******************************************************************/
 
-#define LPS22HB_WHO_AM_I        0X0F //Who am I
-#define LPS22HB_RES_CONF        0X1A //Normal (0) or Low current mode (1)
-#define LPS22HB_CTRL_REG1       0X10 //output rate and filter settings
-#define LPS22HB_CTRL_REG2       0X11 //BOOT FIFO_EN STOP_ON_FTH IF_ADD_INC I2C_DIS SWRESET One_Shot
-#define LPS22HB_STATUS_REG      0X27 //Temp or Press data available bits
-#define LPS22HB_PRES_OUT_XL     0X28 //XLSB
-#define LPS22HB_PRES_OUT_L      0X29 //LSB
-#define LPS22HB_PRES_OUT_H      0X2A //MSB
-#define LPS22HB_TEMP_OUT_L      0X2B //LSB
-#define LPS22HB_TEMP_OUT_H      0X2C //MSB
+#define LPS22HB_WHO_AM_I        0X0F // Who am I
+#define LPS22HB_RES_CONF        0X1A // Normal (0) or Low current mode (1)
+#define LPS22HB_CTRL_REG1       0X10 // Output rate and filter settings
+#define LPS22HB_CTRL_REG2       0X11 // BOOT FIFO_EN STOP_ON_FTH IF_ADD_INC I2C_DIS SWRESET One_Shot
+#define LPS22HB_STATUS_REG      0X27 // Temp or Press data available bits
+#define LPS22HB_PRES_OUT_XL     0X28 // XLSB
+#define LPS22HB_PRES_OUT_L      0X29 // LSB
+#define LPS22HB_PRES_OUT_H      0X2A // MSB
+#define LPS22HB_TEMP_OUT_L      0X2B // LSB
+#define LPS22HB_TEMP_OUT_H      0X2C // MSB
 #define LPS22HB_WHO_AM_I_VALUE  0xB1 // Expected return value of WHO_AM_I register
 
 /******************************************************************
  *
- * Device Addresses - 
+ * I2C Device Addresses - 
  * ref: https://github.com/arduino-libraries/Arduino_LSM9DS1/blob/master/src/LSM9DS1.cpp
  * 
  ******************************************************************/
@@ -222,6 +229,7 @@ void LSM9DS1::begin() {
     writeByte(LSM9DS1XG_ADDRESS, LSM9DS1XG_CTRL_REG8, 0x05);
     writeByte(LSM9DS1M_ADDRESS, LSM9DS1M_CTRL_REG2_M, 0x0c);
 
+    //  Default configuration
     OSR = ADC_4096;      // set pressure amd temperature oversample rate
     Godr = GODR_238Hz;   // gyro data sample rate
     Gbw = GBW_med;       // gyro data bandwidth
@@ -230,11 +238,117 @@ void LSM9DS1::begin() {
     Modr = MODR_10Hz;    // mag data sample rate
     Mmode = MMode_HighPerformance;  // magnetometer operation mode
 
+    //  Sensor Fusion Co-Efficients - see README.md
+    gyroMeasError = PI * (40.0f / 180.0f);   // gyroscope measurement error in rads/s (start at 40 deg/s)
+    gyroMeasDrift = PI * (0.0f  / 180.0f);   // gyroscope measurement drift in rad/s/s (start at 0.0 deg/s/s)
+    beta = sqrt(3.0f / 4.0f) * gyroMeasError;   // compute beta
+    zeta = sqrt(3.0f / 4.0f) * gyroMeasDrift;   // compute zeta, the other free parameter in the Madgwick scheme usually set to a small or zero value
+    Kp = 2.0f * 5.0f; // These are the free parameters in the Mahony filter and fusion scheme, Kp for proportional feedback, Ki for integral
+    Ki = 0.0f;
+
     //  Scale resolutions per LSB for each sensor
     //  sets aRes, gRes, mRes and aScale, gScale, mScale
     setAccResolution(Ascale::AFS_2G);
     setGyroResolution(Gscale::GFS_245DPS);
     setMagResolution(Mscale::MFS_4G);
+
+    //  Set default sensor fusion algorithm
+    setFusionAlgorithm(SensorFusion::MADGWICK);
+
+    //  Set default magnetic declination - Sydney, NSW, AUSTRALIA
+    setDeclination(12.717);
+}
+
+void LSM9DS1::start() {  
+  //  Start processing sensor data
+  //  enable the 3-axes of the gyroscope
+  writeByte(LSM9DS1XG_ADDRESS, LSM9DS1XG_CTRL_REG4, 0x38);
+  // configure the gyroscope
+  writeByte(LSM9DS1XG_ADDRESS, LSM9DS1XG_CTRL_REG1_G, Godr << 5 | gScale << 3 | Gbw);
+  delay(200);
+  // enable the three axes of the accelerometer 
+  writeByte(LSM9DS1XG_ADDRESS, LSM9DS1XG_CTRL_REG5_XL, 0x38);
+  // configure the accelerometer-specify bandwidth selection with Abw
+  writeByte(LSM9DS1XG_ADDRESS, LSM9DS1XG_CTRL_REG6_XL, Aodr << 5 | aScale << 3 | 0x04 | Abw);
+  delay(200);
+  // enable block data update, allow auto-increment during multiple byte read
+  writeByte(LSM9DS1XG_ADDRESS, LSM9DS1XG_CTRL_REG8, 0x44);
+  // configure the magnetometer-enable temperature compensation of mag data
+  writeByte(LSM9DS1M_ADDRESS, LSM9DS1M_CTRL_REG1_M, 0x80 | Mmode << 5 | Modr << 2); // select x,y-axis mode
+  writeByte(LSM9DS1M_ADDRESS, LSM9DS1M_CTRL_REG2_M, mScale << 5 ); // select mag full scale
+  writeByte(LSM9DS1M_ADDRESS, LSM9DS1M_CTRL_REG3_M, 0x00 ); // continuous conversion mode
+  writeByte(LSM9DS1M_ADDRESS, LSM9DS1M_CTRL_REG4_M, Mmode << 2 ); // select z-axis mode
+  writeByte(LSM9DS1M_ADDRESS, LSM9DS1M_CTRL_REG5_M, 0x40 ); // select block update mode
+}
+
+SensorData LSM9DS1::update() {
+  float ax, ay, az, gx, gy, gz, mx, my, mz; // variables to hold latest sensor data values
+  int16_t accelCount[3], gyroCount[3], magCount[3];  // Stores the 16-bit signed accelerometer, gyro, and mag sensor output
+
+  if (readByte(LSM9DS1XG_ADDRESS, LSM9DS1XG_STATUS_REG) & 0x01) {  // check if new accel data is ready  
+    readAccelData(accelCount);  // Read the x/y/z adc values
+
+    // Now we'll calculate the accleration value into actual g's
+    ax = (float)accelCount[0] * aRes - accelBias[0];  // get actual g value, this depends on scale being set
+    ay = (float)accelCount[1] * aRes - accelBias[1];   
+    az = (float)accelCount[2] * aRes - accelBias[2]; 
+  } 
+
+  if (readByte(LSM9DS1XG_ADDRESS, LSM9DS1XG_STATUS_REG) & 0x02) {  // check if new gyro data is ready  
+    readGyroData(gyroCount);  // Read the x/y/z adc values
+
+    // Calculate the gyro value into actual degrees per second
+    gx = (float)gyroCount[0] * gRes - gyroBias[0];  // get actual gyro value, this depends on scale being set
+    gy = (float)gyroCount[1] * gRes - gyroBias[1];  
+    gz = (float)gyroCount[2] * gRes - gyroBias[2];   
+  }
+
+  if (readByte(LSM9DS1M_ADDRESS, LSM9DS1M_STATUS_REG_M) & 0x08) {  // check if new mag data is ready  
+    readMagData(magCount);  // Read the x/y/z adc values
+
+    // Calculate the magnetometer values in milliGauss
+    // Include factory calibration per data sheet and user environmental corrections
+    mx = (float)magCount[0] * mRes; // - magBias[0];  // get actual magnetometer value, this depends on scale being set
+    my = (float)magCount[1] * mRes; // - magBias[1];  
+    mz = (float)magCount[2] * mRes; // - magBias[2];   
+  }
+
+  long now = micros();
+
+  deltaT = ((now - lastUpdate)/1000000.0f); // set integration time by time elapsed since last filter update
+  lastUpdate = now;
+  sumT += deltaT; // sum for averaging filter update rate
+
+  //  Sensor Fusion - updates quaternion vector q[4]
+  if (fusion == SensorFusion::MADGWICK) {
+    madgwickQuaternionUpdate(ax, ay, az, gx*PI/180.0f, gy*PI/180.0f, gz*PI/180.0f, -mx, my, mz);
+  }
+  else {
+    mahonyQuaternionUpdate(ax, ay, az, gx*PI/180.0f, gy*PI/180.0f, gz*PI/180.0f, -mx, my, mz);
+  }
+
+  data.yawRadians   = atan2(2.0f * (q[1] * q[2] + q[0] * q[3]), q[0] * q[0] + q[1] * q[1] - q[2] * q[2] - q[3] * q[3]);   
+  data.pitchRadians = -asin(2.0f * (q[1] * q[3] - q[0] * q[2]));
+  data.rollRadians  = atan2(2.0f * (q[0] * q[1] + q[2] * q[3]), q[0] * q[0] - q[1] * q[1] - q[2] * q[2] + q[3] * q[3]);
+
+  data.pitch *= 180.0f / PI;
+  data.yaw   *= 180.0f / PI; 
+  data.yaw   -= declination; // You need to subtract a positive declination.
+  data.roll  *= 180.0f / PI;
+
+  // Convert yaw to heading (normal compass degrees)   
+  if (data.yaw < 0) data.heading = data.yaw + 360.0;
+  if (data.yaw >= 360.0) data.heading = data.yaw - 360.0;
+
+  return data;
+}
+
+void LSM9DS1::setFusionAlgorithm(SensorFusion algo) {
+  fusion = algo;
+}
+
+void LSM9DS1::setDeclination(float dec) {
+  declination = dec;
 }
 
 uint8_t LSM9DS1::whoAmIGyro() {
@@ -510,13 +624,203 @@ void LSM9DS1::setMagneticBias(float *dest1) {
   dest1[1] = (float) mag_bias[1] * mRes;   
   dest1[2] = (float) mag_bias[2] * mRes;          
 
-  //write biases to accelerometermagnetometer offset registers as counts);
+  //write biases to magnetometer offset registers as counts);
   writeByte(LSM9DS1M_ADDRESS, LSM9DS1M_OFFSET_X_REG_L_M, (int16_t) mag_bias[0]  & 0xFF);
   writeByte(LSM9DS1M_ADDRESS, LSM9DS1M_OFFSET_X_REG_H_M, ((int16_t)mag_bias[0] >> 8) & 0xFF);
   writeByte(LSM9DS1M_ADDRESS, LSM9DS1M_OFFSET_Y_REG_L_M, (int16_t) mag_bias[1] & 0xFF);
   writeByte(LSM9DS1M_ADDRESS, LSM9DS1M_OFFSET_Y_REG_H_M, ((int16_t)mag_bias[1] >> 8) & 0xFF);
   writeByte(LSM9DS1M_ADDRESS, LSM9DS1M_OFFSET_Z_REG_L_M, (int16_t) mag_bias[2] & 0xFF);
   writeByte(LSM9DS1M_ADDRESS, LSM9DS1M_OFFSET_Z_REG_H_M, ((int16_t)mag_bias[2] >> 8) & 0xFF);
+}
+
+// Implementation of Sebastian Madgwick's "...efficient orientation filter for... inertial/magnetic sensor arrays"
+// (see http://www.x-io.co.uk/category/open-source/ for examples and more details)
+// which fuses acceleration, rotation rate, and magnetic moments to produce a quaternion-based estimate of absolute
+// device orientation -- which can be converted to yaw, pitch, and roll. Useful for stabilizing quadcopters, etc.
+// The performance of the orientation filter is at least as good as conventional Kalman-based filtering algorithms
+// but is much less computationally intensive
+void LSM9DS1::madgwickQuaternionUpdate(float ax, float ay, float az, float gx, float gy, float gz, float mx, float my, float mz) {
+  float q1 = q[0], q2 = q[1], q3 = q[2], q4 = q[3];   // short name local variable for readability
+  float norm;
+  float hx, hy, _2bx, _2bz;
+  float s1, s2, s3, s4;
+  float qDot1, qDot2, qDot3, qDot4;
+
+  // Auxiliary variables to avoid repeated arithmetic
+  float _2q1mx;
+  float _2q1my;
+  float _2q1mz;
+  float _2q2mx;
+  float _4bx;
+  float _4bz;
+  float _2q1 = 2.0f * q1;
+  float _2q2 = 2.0f * q2;
+  float _2q3 = 2.0f * q3;
+  float _2q4 = 2.0f * q4;
+  float _2q1q3 = 2.0f * q1 * q3;
+  float _2q3q4 = 2.0f * q3 * q4;
+  float q1q1 = q1 * q1;
+  float q1q2 = q1 * q2;
+  float q1q3 = q1 * q3;
+  float q1q4 = q1 * q4;
+  float q2q2 = q2 * q2;
+  float q2q3 = q2 * q3;
+  float q2q4 = q2 * q4;
+  float q3q3 = q3 * q3;
+  float q3q4 = q3 * q4;
+  float q4q4 = q4 * q4;
+
+  // Normalise accelerometer measurement
+  norm = sqrt(ax * ax + ay * ay + az * az);
+  if (norm == 0.0f) return; // handle NaN
+  norm = 1.0f/norm;
+  ax *= norm;
+  ay *= norm;
+  az *= norm;
+
+  // Normalise magnetometer measurement
+  norm = sqrt(mx * mx + my * my + mz * mz);
+  if (norm == 0.0f) return; // handle NaN
+  norm = 1.0f/norm;
+  mx *= norm;
+  my *= norm;
+  mz *= norm;
+
+  // Reference direction of Earth's magnetic field
+  _2q1mx = 2.0f * q1 * mx;
+  _2q1my = 2.0f * q1 * my;
+  _2q1mz = 2.0f * q1 * mz;
+  _2q2mx = 2.0f * q2 * mx;
+  hx = mx * q1q1 - _2q1my * q4 + _2q1mz * q3 + mx * q2q2 + _2q2 * my * q3 + _2q2 * mz * q4 - mx * q3q3 - mx * q4q4;
+  hy = _2q1mx * q4 + my * q1q1 - _2q1mz * q2 + _2q2mx * q3 - my * q2q2 + my * q3q3 + _2q3 * mz * q4 - my * q4q4;
+  _2bx = sqrt(hx * hx + hy * hy);
+  _2bz = -_2q1mx * q3 + _2q1my * q2 + mz * q1q1 + _2q2mx * q4 - mz * q2q2 + _2q3 * my * q4 - mz * q3q3 + mz * q4q4;
+  _4bx = 2.0f * _2bx;
+  _4bz = 2.0f * _2bz;
+
+  // Gradient decent algorithm corrective step
+  s1 = -_2q3 * (2.0f * q2q4 - _2q1q3 - ax) + _2q2 * (2.0f * q1q2 + _2q3q4 - ay) - _2bz * q3 * (_2bx * (0.5f - q3q3 - q4q4) + _2bz * (q2q4 - q1q3) - mx) + (-_2bx * q4 + _2bz * q2) * (_2bx * (q2q3 - q1q4) + _2bz * (q1q2 + q3q4) - my) + _2bx * q3 * (_2bx * (q1q3 + q2q4) + _2bz * (0.5f - q2q2 - q3q3) - mz);
+  s2 = _2q4 * (2.0f * q2q4 - _2q1q3 - ax) + _2q1 * (2.0f * q1q2 + _2q3q4 - ay) - 4.0f * q2 * (1.0f - 2.0f * q2q2 - 2.0f * q3q3 - az) + _2bz * q4 * (_2bx * (0.5f - q3q3 - q4q4) + _2bz * (q2q4 - q1q3) - mx) + (_2bx * q3 + _2bz * q1) * (_2bx * (q2q3 - q1q4) + _2bz * (q1q2 + q3q4) - my) + (_2bx * q4 - _4bz * q2) * (_2bx * (q1q3 + q2q4) + _2bz * (0.5f - q2q2 - q3q3) - mz);
+  s3 = -_2q1 * (2.0f * q2q4 - _2q1q3 - ax) + _2q4 * (2.0f * q1q2 + _2q3q4 - ay) - 4.0f * q3 * (1.0f - 2.0f * q2q2 - 2.0f * q3q3 - az) + (-_4bx * q3 - _2bz * q1) * (_2bx * (0.5f - q3q3 - q4q4) + _2bz * (q2q4 - q1q3) - mx) + (_2bx * q2 + _2bz * q4) * (_2bx * (q2q3 - q1q4) + _2bz * (q1q2 + q3q4) - my) + (_2bx * q1 - _4bz * q3) * (_2bx * (q1q3 + q2q4) + _2bz * (0.5f - q2q2 - q3q3) - mz);
+  s4 = _2q2 * (2.0f * q2q4 - _2q1q3 - ax) + _2q3 * (2.0f * q1q2 + _2q3q4 - ay) + (-_4bx * q4 + _2bz * q2) * (_2bx * (0.5f - q3q3 - q4q4) + _2bz * (q2q4 - q1q3) - mx) + (-_2bx * q1 + _2bz * q3) * (_2bx * (q2q3 - q1q4) + _2bz * (q1q2 + q3q4) - my) + _2bx * q2 * (_2bx * (q1q3 + q2q4) + _2bz * (0.5f - q2q2 - q3q3) - mz);
+  norm = sqrt(s1 * s1 + s2 * s2 + s3 * s3 + s4 * s4);    // normalise step magnitude
+  norm = 1.0f/norm;
+  s1 *= norm;
+  s2 *= norm;
+  s3 *= norm;
+  s4 *= norm;
+
+  // Compute rate of change of quaternion
+  qDot1 = 0.5f * (-q2 * gx - q3 * gy - q4 * gz) - beta * s1;
+  qDot2 = 0.5f * (q1 * gx + q3 * gz - q4 * gy) - beta * s2;
+  qDot3 = 0.5f * (q1 * gy - q2 * gz + q4 * gx) - beta * s3;
+  qDot4 = 0.5f * (q1 * gz + q2 * gy - q3 * gx) - beta * s4;
+
+  // Integrate to yield quaternion
+  q1 += qDot1 * deltaT;
+  q2 += qDot2 * deltaT;
+  q3 += qDot3 * deltaT;
+  q4 += qDot4 * deltaT;
+  norm = sqrt(q1 * q1 + q2 * q2 + q3 * q3 + q4 * q4);    // normalise quaternion
+  norm = 1.0f/norm;
+  q[0] = q1 * norm;
+  q[1] = q2 * norm;
+  q[2] = q3 * norm;
+  q[3] = q4 * norm;
+
+}
+
+// Similar to Madgwick scheme but uses proportional and integral filtering on the error between estimated reference vectors and
+// measured ones. 
+void LSM9DS1::mahonyQuaternionUpdate(float ax, float ay, float az, float gx, float gy, float gz, float mx, float my, float mz) {
+  float q1 = q[0], q2 = q[1], q3 = q[2], q4 = q[3];   // short name local variable for readability
+  float norm;
+  float hx, hy, bx, bz;
+  float vx, vy, vz, wx, wy, wz;
+  float ex, ey, ez;
+  float pa, pb, pc;
+
+  // Auxiliary variables to avoid repeated arithmetic
+  float q1q1 = q1 * q1;
+  float q1q2 = q1 * q2;
+  float q1q3 = q1 * q3;
+  float q1q4 = q1 * q4;
+  float q2q2 = q2 * q2;
+  float q2q3 = q2 * q3;
+  float q2q4 = q2 * q4;
+  float q3q3 = q3 * q3;
+  float q3q4 = q3 * q4;
+  float q4q4 = q4 * q4;   
+
+  // Normalise accelerometer measurement
+  norm = sqrtf(ax * ax + ay * ay + az * az);
+  if (norm == 0.0f) return; // handle NaN
+  norm = 1.0f / norm;        // use reciprocal for division
+  ax *= norm;
+  ay *= norm;
+  az *= norm;
+
+  // Normalise magnetometer measurement
+  norm = sqrtf(mx * mx + my * my + mz * mz);
+  if (norm == 0.0f) return; // handle NaN
+  norm = 1.0f / norm;        // use reciprocal for division
+  mx *= norm;
+  my *= norm;
+  mz *= norm;
+
+  // Reference direction of Earth's magnetic field
+  hx = 2.0f * mx * (0.5f - q3q3 - q4q4) + 2.0f * my * (q2q3 - q1q4) + 2.0f * mz * (q2q4 + q1q3);
+  hy = 2.0f * mx * (q2q3 + q1q4) + 2.0f * my * (0.5f - q2q2 - q4q4) + 2.0f * mz * (q3q4 - q1q2);
+  bx = sqrtf((hx * hx) + (hy * hy));
+  bz = 2.0f * mx * (q2q4 - q1q3) + 2.0f * my * (q3q4 + q1q2) + 2.0f * mz * (0.5f - q2q2 - q3q3);
+
+  // Estimated direction of gravity and magnetic field
+  vx = 2.0f * (q2q4 - q1q3);
+  vy = 2.0f * (q1q2 + q3q4);
+  vz = q1q1 - q2q2 - q3q3 + q4q4;
+  wx = 2.0f * bx * (0.5f - q3q3 - q4q4) + 2.0f * bz * (q2q4 - q1q3);
+  wy = 2.0f * bx * (q2q3 - q1q4) + 2.0f * bz * (q1q2 + q3q4);
+  wz = 2.0f * bx * (q1q3 + q2q4) + 2.0f * bz * (0.5f - q2q2 - q3q3);  
+
+  // Error is cross product between estimated direction and measured direction of gravity
+  ex = (ay * vz - az * vy) + (my * wz - mz * wy);
+  ey = (az * vx - ax * vz) + (mz * wx - mx * wz);
+  ez = (ax * vy - ay * vx) + (mx * wy - my * wx);
+  if (Ki > 0.0f)
+  {
+      eInt[0] += ex;      // accumulate integral error
+      eInt[1] += ey;
+      eInt[2] += ez;
+  }
+  else
+  {
+      eInt[0] = 0.0f;     // prevent integral wind up
+      eInt[1] = 0.0f;
+      eInt[2] = 0.0f;
+  }
+
+  // Apply feedback terms
+  gx = gx + Kp * ex + Ki * eInt[0];
+  gy = gy + Kp * ey + Ki * eInt[1];
+  gz = gz + Kp * ez + Ki * eInt[2];
+
+  // Integrate rate of change of quaternion
+  pa = q2;
+  pb = q3;
+  pc = q4;
+  q1 = q1 + (-q2 * gx - q3 * gy - q4 * gz) * (0.5f * deltaT);
+  q2 = pa + (q1 * gx + pb * gz - pc * gy) * (0.5f * deltaT);
+  q3 = pb + (q1 * gy - pa * gz + pc * gx) * (0.5f * deltaT);
+  q4 = pc + (q1 * gz + pa * gy - pb * gx) * (0.5f * deltaT);
+
+  // Normalise quaternion
+  norm = sqrtf(q1 * q1 + q2 * q2 + q3 * q3 + q4 * q4);
+  norm = 1.0f / norm;
+  q[0] = q1 * norm;
+  q[1] = q2 * norm;
+  q[2] = q3 * norm;
+  q[3] = q4 * norm;
+
 }
 
 /******************************************************************

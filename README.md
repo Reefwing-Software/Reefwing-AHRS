@@ -99,8 +99,47 @@ struct SelfTestResults {
 };
 ```
 
-These results are compared with the expected ranges for the sensors and passed  
+A sensor will `PASS` the self test if these results are within the expected range:
+
+- Gyroscope x, y and z axis expected range: 20 - 250 dps.
+- Accelerometer x, y, and z axis expected range: 60 - 1700 mg.
 
 #### 2.2 Magnetometer
 
-The magnetometer included in the LSM9DS1 chip is the LIS3MDL. Its self test procedure is documented in [Application Note AN4602](https://www.st.com/en/mems-and-sensors/lis3mdl.html#documentation).
+The magnetometer included in the LSM9DS1 chip is the LIS3MDL. Its calibration is a bit different to the accelerometer and gyroscope. At the start of the magnetometer calibration, you will be asked to wave the Nano 33 BLE in a vertical figure of 8.
+
+Since the magenetic field of the earth is relatively constant, the magnitude of the field measured by the magnetometer should also be constant, regardless of the orientation of the sensor. If one were to rotate the sensor and plot 𝑚𝑥, 𝑚𝑦, and 𝑚𝑧 in 3D, the paths should plot out the surface of a sphere with a constant radius.
+
+In reality, due to hard and soft iron distortion, a 3D plot of magnetic field strength ends up as a deformed sphere. Calibration is used to adjust each of the three axis readings, so that the magnitude is constant regardless of orientation.
+
+Performing the figure of 8 pattern 'traces out' part of our deformed sphere. From the coordinates obtained, the deformation of the sphere can be estimated, and the calibration coefficients calculated. A good pattern is one that traces through the greatest range of orientations and therefore estimates the greatest deviation from the true constant magnitude.
+
+### 3. Roll, Pitch and Yaw Angles on Serial Port
+
+Define output variables from updated quaternion---these are Tait-Bryan angles, commonly used in aircraft orientation.
+In this coordinate system, the positive z-axis is down toward Earth. 
+Yaw is the angle between Sensor x-axis and Earth magnetic North (or true North if corrected for local declination, looking down on the sensor positive yaw is counterclockwise.
+Pitch is angle between sensor x-axis and Earth ground plane, toward the Earth is positive, up toward the sky is negative.
+Roll is angle between sensor y-axis and Earth ground plane, y-axis up is positive roll.
+
+These arise from the definition of the homogeneous rotation matrix constructed from quaternions.
+Tait-Bryan angles as well as Euler angles are non-commutative; that is, the get the correct orientation the rotations must be applied in the correct order which for this configuration is yaw, pitch, and then roll.
+
+For more see http://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles.
+
+With these settings the filter is updating at a ~145 Hz rate using the Madgwick scheme and 
+>200 Hz using the Mahony scheme even though the display refreshes at only 2 Hz.
+The filter update rate is determined mostly by the mathematical steps in the respective algorithms, 
+the processor speed (8 MHz for the 3.3V Pro Mini), and the magnetometer ODR:
+an ODR of 10 Hz for the magnetometer produce the above rates, maximum magnetometer ODR of 100 Hz produces
+filter update rates of 36 - 145 and ~38 Hz for the Madgwick and Mahony schemes, respectively. 
+This is presumably because the magnetometer read takes longer than the gyro or accelerometer reads.
+This filter update rate should be fast enough to maintain accurate platform orientation for 
+stabilization control of a fast-moving robot or quadcopter. 
+
+#### Madgwick Sensor Fusion
+
+There is a tradeoff in the beta parameter between accuracy and response speed. In the original Madgwick study, beta of 0.041 (corresponding to GyroMeasError of 2.7 degrees/s) was found to give optimal accuracy. However, with this value, the LSM9SD0 response time is about 10 seconds to a stable initial quaternion. Subsequent changes also require a longish lag time to a stable output, not fast enough for a quadcopter!
+
+By increasing beta (GyroMeasError) by about a factor of fifteen, the response time constant is reduced to ~2 sec. We haven't noticed any reduction in solution accuracy. This is essentially the I coefficient in a PID control sense; the bigger the feedback coefficient, the faster the solution converges, usually at the expense of accuracy. In any case, this is the free parameter in the Madgwick filtering and fusion scheme.
+
