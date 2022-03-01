@@ -132,6 +132,7 @@ class LSM9DS1 {
         float eInt[3] = {0.0f, 0.0f, 0.0f};       // vector to hold integral error for Mahony method
         float declination;
         float gyroMeasError, gyroMeasDrift, beta, zeta, Kp, Ki;
+        float ax, ay, az, gx, gy, gz, mx, my, mz; // variables to hold latest sensor data values 
 
         SensorData data;
         SensorFusion fusion;

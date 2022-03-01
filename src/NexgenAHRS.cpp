@@ -282,7 +282,6 @@ void LSM9DS1::start() {
 }
 
 SensorData LSM9DS1::update() {
-  float ax, ay, az, gx, gy, gz, mx, my, mz; // variables to hold latest sensor data values
   int16_t accelCount[3], gyroCount[3], magCount[3];  // Stores the raw 16-bit signed accelerometer, gyro, and mag sensor output
 
   if (readByte(LSM9DS1XG_ADDRESS, LSM9DS1XG_STATUS_REG) & 0x01) {  // check if new accel data is ready  
