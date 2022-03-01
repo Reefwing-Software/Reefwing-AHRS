@@ -283,7 +283,7 @@ void LSM9DS1::start() {
 
 SensorData LSM9DS1::update() {
   float ax, ay, az, gx, gy, gz, mx, my, mz; // variables to hold latest sensor data values
-  int16_t accelCount[3], gyroCount[3], magCount[3];  // Stores the 16-bit signed accelerometer, gyro, and mag sensor output
+  int16_t accelCount[3], gyroCount[3], magCount[3];  // Stores the raw 16-bit signed accelerometer, gyro, and mag sensor output
 
   if (readByte(LSM9DS1XG_ADDRESS, LSM9DS1XG_STATUS_REG) & 0x01) {  // check if new accel data is ready  
     readAccelData(accelCount);  // Read the x/y/z adc values
@@ -309,8 +309,8 @@ SensorData LSM9DS1::update() {
     // Calculate the magnetometer values in milliGauss
     // Include factory calibration per data sheet and user environmental corrections
     mx = (float)magCount[0] * mRes; // - magBias[0];  // get actual magnetometer value, this depends on scale being set
-    my = (float)magCount[1] * mRes; // - magBias[1];  
-    mz = (float)magCount[2] * mRes; // - magBias[2];   
+    my = (float)magCount[1] * mRes; // - magBias[1];  // offset already stored in register, so no need
+    mz = (float)magCount[2] * mRes; // - magBias[2];  // to subtract the bias again. 
   }
 
   long now = micros();
@@ -375,6 +375,34 @@ float LSM9DS1::readGyroTemp() {
     int16_t rawTemp = (((int16_t)rawData[1] << 8) | rawData[0]);  
     // Gyro chip temperature in degrees Centigrade
     return ((float)rawTemp/256.0 + 25.0); 
+}
+
+void LSM9DS1::readAccelData(int16_t* destination) {
+  uint8_t rawData[6];  // x/y/z accel register data stored here
+
+  readBytes(LSM9DS1XG_ADDRESS, LSM9DS1XG_OUT_X_L_XL, 6, &rawData[0]);  // Read the six raw data registers into data array
+  destination[0] = ((int16_t)rawData[1] << 8) | rawData[0] ;  // Turn the MSB and LSB into a signed 16-bit value
+  destination[1] = ((int16_t)rawData[3] << 8) | rawData[2] ;  
+  destination[2] = ((int16_t)rawData[5] << 8) | rawData[4] ; 
+}
+
+
+void LSM9DS1::readGyroData(int16_t* destination) {
+  uint8_t rawData[6];  // x/y/z gyro register data stored here
+
+  readBytes(LSM9DS1XG_ADDRESS, LSM9DS1XG_OUT_X_L_G, 6, &rawData[0]);  // Read the six raw data registers sequentially into data array
+  destination[0] = ((int16_t)rawData[1] << 8) | rawData[0] ;  // Turn the MSB and LSB into a signed 16-bit value
+  destination[1] = ((int16_t)rawData[3] << 8) | rawData[2] ;  
+  destination[2] = ((int16_t)rawData[5] << 8) | rawData[4] ; 
+}
+
+void LSM9DS1::readMagData(int16_t* destination) {
+  uint8_t rawData[6];  // x/y/z gyro register data stored here
+  
+  readBytes(LSM9DS1M_ADDRESS, LSM9DS1M_OUT_X_L_M, 6, &rawData[0]);  // Read the six raw data registers sequentially into data array
+  destination[0] = ((int16_t)rawData[1] << 8) | rawData[0] ;  // Turn the MSB and LSB into a signed 16-bit value
+  destination[1] = ((int16_t)rawData[3] << 8) | rawData[2] ;  // Data stored as little Endian
+  destination[2] = ((int16_t)rawData[5] << 8) | rawData[4] ; 
 }
 
 void LSM9DS1::setAccResolution(Ascale ascale) {
