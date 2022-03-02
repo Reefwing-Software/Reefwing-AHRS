@@ -30,7 +30,7 @@ void printCode(char method[], float bias[3]) {
   Serial.print("(");
   Serial.print(bias[0], 6); Serial.print(", ");
   Serial.print(bias[1], 6); Serial.print(", ");
-  Serial.print(bias[2], 6); Serial.print(");");
+  Serial.print(bias[2], 6); Serial.println(");");
 }
 
 void setup() {
@@ -120,7 +120,7 @@ void setup() {
 
       Serial.println("\nLSM9DS1 IMU CALIBRATION COMPLETE.");
 
-      Serial.println("\n\n Code to copy and paste into your sketch:\n");
+      Serial.println("\n\n  Code to copy and paste into your sketch:\n");
 
       printCode("\timu.loadAccBias", biasOffsets.accelBias);
       printCode("\timu.loadGyroBias", biasOffsets.gyroBias);

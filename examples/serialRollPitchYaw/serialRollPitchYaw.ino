@@ -34,6 +34,13 @@ void setup() {
   while (!Serial);
 
   if (imu.connected()) {
+      //  Paste your calibration bias offset HERE
+      //  This information comes from the testAndCalibrate.ino 
+      //  sketch in the library examples sub-directory.
+      imu.loadAccBias(0.070862, -0.046570, -0.016907);
+	    imu.loadGyroBias(0.800018, 0.269165, -0.097198);
+	    imu.loadMagBias(-0.192261, -0.012085, 0.118652);
+
       //    This sketch assumes that the LSM9DS1 is already calibrated, 
       //    If so, start processing IMU data. If not, run the testAndCalibrate 
       //    sketch first.
