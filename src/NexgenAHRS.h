@@ -103,7 +103,10 @@ class LSM9DS1 {
         void calibrateMag();
         void setFusionAlgorithm(SensorFusion algo);
         void setDeclination(float dec);
-        
+        void loadAccBias(float axB, float ayB, float azB);
+        void loadGyroBias(float gxB, float gyB, float gzB);
+        void loadMagBias(float mxB, float myB, float mzB);
+
         SensorData update();
         SelfTestResults selfTest();
         BiasOffsets getBiasOffsets();

@@ -307,9 +307,9 @@ SensorData LSM9DS1::update() {
 
     // Calculate the magnetometer values in milliGauss
     // Include factory calibration per data sheet and user environmental corrections
-    mx = (float)magCount[0] * mRes; // - magBias[0];  // get actual magnetometer value, this depends on scale being set
-    my = (float)magCount[1] * mRes; // - magBias[1];  // offset already stored in register, so no need
-    mz = (float)magCount[2] * mRes; // - magBias[2];  // to subtract the bias again. 
+    mx = (float)magCount[0] * mRes - magBias[0];  // get actual magnetometer value, this depends on scale being set
+    my = (float)magCount[1] * mRes - magBias[1];  // if offset already stored in register, no need
+    mz = (float)magCount[2] * mRes - magBias[2];  // to subtract the bias again. 
   }
 
   long now = micros();
@@ -520,6 +520,24 @@ BiasOffsets LSM9DS1::getBiasOffsets() {
   return biasOffsets;
 }
 
+void LSM9DS1::loadAccBias(float axB, float ayB, float azB) {
+  accelBias[0] = axB;
+  accelBias[1] = ayB;
+  accelBias[2] = azB;
+}
+
+void LSM9DS1::loadGyroBias(float gxB, float gyB, float gzB) {
+  gyroBias[0] = gxB;
+  gyroBias[1] = gyB;
+  gyroBias[2] = gzB;
+}
+
+void LSM9DS1::loadMagBias(float mxB, float myB, float mzB) {
+  magBias[0] = mxB;
+  magBias[1] = myB;
+  magBias[2] = mzB;
+}
+
 // Function which accumulates gyro and accelerometer data after device initialization. It calculates the average
 // of the at-rest readings and then loads the resulting offsets into accelerometer and gyro bias registers.
 void LSM9DS1::setBiasOffsets(float* dest1, float* dest2) {  
@@ -651,13 +669,14 @@ void LSM9DS1::setMagneticBias(float *dest1) {
   dest1[1] = (float) mag_bias[1] * mRes;   
   dest1[2] = (float) mag_bias[2] * mRes;          
 
-  //write biases to magnetometer offset registers as counts);
-  writeByte(LSM9DS1M_ADDRESS, LSM9DS1M_OFFSET_X_REG_L_M, (int16_t) mag_bias[0]  & 0xFF);
-  writeByte(LSM9DS1M_ADDRESS, LSM9DS1M_OFFSET_X_REG_H_M, ((int16_t)mag_bias[0] >> 8) & 0xFF);
-  writeByte(LSM9DS1M_ADDRESS, LSM9DS1M_OFFSET_Y_REG_L_M, (int16_t) mag_bias[1] & 0xFF);
-  writeByte(LSM9DS1M_ADDRESS, LSM9DS1M_OFFSET_Y_REG_H_M, ((int16_t)mag_bias[1] >> 8) & 0xFF);
-  writeByte(LSM9DS1M_ADDRESS, LSM9DS1M_OFFSET_Z_REG_L_M, (int16_t) mag_bias[2] & 0xFF);
-  writeByte(LSM9DS1M_ADDRESS, LSM9DS1M_OFFSET_Z_REG_H_M, ((int16_t)mag_bias[2] >> 8) & 0xFF);
+  //  Write biases to magnetometer offset registers as counts);
+  //  Either write offset to register or correct in update()
+  //  writeByte(LSM9DS1M_ADDRESS, LSM9DS1M_OFFSET_X_REG_L_M, (int16_t) mag_bias[0]  & 0xFF);
+  //  writeByte(LSM9DS1M_ADDRESS, LSM9DS1M_OFFSET_X_REG_H_M, ((int16_t)mag_bias[0] >> 8) & 0xFF);
+  //  writeByte(LSM9DS1M_ADDRESS, LSM9DS1M_OFFSET_Y_REG_L_M, (int16_t) mag_bias[1] & 0xFF);
+  //  writeByte(LSM9DS1M_ADDRESS, LSM9DS1M_OFFSET_Y_REG_H_M, ((int16_t)mag_bias[1] >> 8) & 0xFF);
+  //  writeByte(LSM9DS1M_ADDRESS, LSM9DS1M_OFFSET_Z_REG_L_M, (int16_t) mag_bias[2] & 0xFF);
+  //  writeByte(LSM9DS1M_ADDRESS, LSM9DS1M_OFFSET_Z_REG_H_M, ((int16_t)mag_bias[2] >> 8) & 0xFF);
 }
 
 // Implementation of Sebastian Madgwick's "...efficient orientation filter for... inertial/magnetic sensor arrays"

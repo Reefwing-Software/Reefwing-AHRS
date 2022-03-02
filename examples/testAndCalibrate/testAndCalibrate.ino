@@ -25,6 +25,14 @@ bool sensorInRange(float x, float y, float z, float min, float max) {
          );
 }
 
+void printCode(char method[], float bias[3]) {   
+  Serial.print(method);
+  Serial.print("(");
+  Serial.print(bias[0], 6); Serial.print(", ");
+  Serial.print(bias[1], 6); Serial.print(", ");
+  Serial.print(bias[2], 6); Serial.print(");");
+}
+
 void setup() {
   // Initialise the LSM9DS1 IMU
   imu.begin();
@@ -111,6 +119,12 @@ void setup() {
       Serial.println(1000.0 * biasOffsets.magBias[2]); 
 
       Serial.println("\nLSM9DS1 IMU CALIBRATION COMPLETE.");
+
+      Serial.println("\n\n Code to copy and paste into your sketch:\n");
+
+      printCode("\timu.loadAccBias", biasOffsets.accelBias);
+      printCode("\timu.loadGyroBias", biasOffsets.gyroBias);
+      printCode("\timu.loadMagBias", biasOffsets.magBias);
   }
   else {
     Serial.println("LSM9DS1 IMU not found.");
