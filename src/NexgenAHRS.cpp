@@ -225,7 +225,7 @@ enum Modr {  // set of allowable mag sample rates
 Quaternion::Quaternion() {
   q0 = 1.0;
   q1 = q2 = q3 = 0.0;
-  eulerAngels.yaw = eulerAngels.pitch = eulerAngels.roll = 0.0;
+  eulerAngles.yaw = eulerAngles.pitch = eulerAngles.roll = 0.0;
   eulerAngles.heading = 0.0;
   eulerAngles.yawRadians = eulerAngles.pitchRadians = eulerAngles.rollRadians = 0.0;
 }
@@ -336,7 +336,7 @@ void Quaternion::madgwickUpdate(SensorData data, float beta, float deltaT) {
   _2q0mz = 2.0f * q0 * data.mz;
   _2q1mx = 2.0f * q1 * data.mx;
 
-  hx = data.mx * q0q0 - _2q0my * q3 + _2q0mz * q2 + data.mx * q1q1 + _2q1 * data.my * q2 + _2q1 * data.mz * q3 - data.mx * q2q2 - data.mx * q3q33;
+  hx = data.mx * q0q0 - _2q0my * q3 + _2q0mz * q2 + data.mx * q1q1 + _2q1 * data.my * q2 + _2q1 * data.mz * q3 - data.mx * q2q2 - data.mx * q3q3;
   hy = _2q0mx * q3 + data.my * q0q0 - _2q0mz * q1 + _2q1mx * q2 - data.my * q1q1 + data.my * q2q2 + _2q2 * data.mz * q3 - data.my * q3q3;
   _2bx = sqrt(hx * hx + hy * hy);
   _2bz = -_2q0mx * q2 + _2q0my * q1 + data.mz * q0q0 + _2q1mx * q3 - data.mz * q1q1 + _2q2 * data.my * q3 - data.mz * q2q2 + data.mz * q3q3;
