@@ -255,7 +255,7 @@ Quaternion::Quaternion(float yaw, float pitch, float roll) {
   q3 = cr * cp * sy - sr * sp * cy;
 }
 
-EulerAngles Quaternion::toEulerAngels() {
+EulerAngles Quaternion::toEulerAngles() {
   //  Converts a quaternion to Euler Angles
   //  ref: https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles
 
@@ -446,7 +446,7 @@ void LSM9DS1::start() {
   writeByte(LSM9DS1M_ADDRESS, LSM9DS1M_CTRL_REG5_M, 0x40 ); // select block update mode
 }
 
-EulerAngels LSM9DS1::update() {
+EulerAngles LSM9DS1::update() {
   int16_t accelCount[3], gyroCount[3], magCount[3];  // Stores the raw 16-bit signed accelerometer, gyro, and mag sensor output
 
   if (readByte(LSM9DS1XG_ADDRESS, LSM9DS1XG_STATUS_REG) & 0x01) {  // check if new accel data is ready  

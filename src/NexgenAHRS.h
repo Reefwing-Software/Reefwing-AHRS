@@ -95,7 +95,7 @@ class Quaternion {
     Quaternion(float w, float x, float y, float z);
     Quaternion(float yaw, float pitch, float roll);
 
-    EulerAngles toEulerAngels();
+    EulerAngles toEulerAngles();
     void madgwickUpdate(SensorData data, float beta, float deltaT); 
     void mahoneyUpdate(SensorData data);
 
