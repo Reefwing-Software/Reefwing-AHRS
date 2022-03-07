@@ -95,12 +95,11 @@ class Quaternion {
     Quaternion(float w, float x, float y, float z);
     Quaternion(float yaw, float pitch, float roll);
 
-    EulerAngles toEulerAngles();
+    EulerAngles toEulerAngles(float declination = 0.0);
     void madgwickUpdate(SensorData data, float beta, float deltaT); 
     void mahoneyUpdate(SensorData data);
 
     float q0, q1, q2, q3;      //  Euler Parameters
-    EulerAngles eulerAngles;
 };
 
 /******************************************************************

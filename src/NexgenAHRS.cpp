@@ -255,31 +255,24 @@ Quaternion::Quaternion(float yaw, float pitch, float roll) {
   q3 = cr * cp * sy - sr * sp * cy;
 }
 
-EulerAngles Quaternion::toEulerAngles() {
+EulerAngles Quaternion::toEulerAngles(float declination) {
   //  Converts a quaternion to Euler Angles
   //  ref: https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles
 
   EulerAngles angles;
 
-  // roll (x-axis rotation)
-  float sinr_cosp = 2 * (q0 * q1 + q2 * q3);
-  float cosr_cosp = 1 - 2 * (q1 * q1 + q2 * q2);
+  angles.yawRadians   = atan2(2.0f * (q1 * q2 + q0 * q3), q0 * q0 + q1 * q1 - q2 * q2 - q3 * q3);   
+  angles.pitchRadians = -asin(2.0f * (q1 * q3 - q0 * q2));
+  angles.rollRadians  = atan2(2.0f * (q0 * q1 + q2 * q3), q0 * q0 - q1 * q1 - q2 * q2 + q3 * q3);
 
-  angles.roll = atan2(sinr_cosp, cosr_cosp);
+  angles.pitch *= 180.0f / PI;
+  angles.yaw   *= 180.0f / PI; 
+  angles.yaw   -= declination; // You need to subtract a positive declination.
+  angles.roll  *= 180.0f / PI;
 
-  // pitch (y-axis rotation)
-  float sinp = 2 * (q0 * q2 - q3 * q1);
-
-  if (abs(sinp) >= 1)
-      angles.pitch = copysign(M_PI / 2, sinp); // use 90 degrees if out of range
-  else
-      angles.pitch = asin(sinp);
-
-  // yaw (z-axis rotation)
-  float siny_cosp = 2 * (q0 * q3 + q1 * q2);
-  float cosy_cosp = 1 - 2 * (q2 * q2 + q3 * q3);
-
-  angles.yaw = atan2(siny_cosp, cosy_cosp);
+  // Convert yaw to heading (normal compass degrees)   
+  if (angles.yaw < 0) angles.heading = angles.yaw + 360.0;
+  if (angles.yaw >= 360.0) angles.heading = eulerAngels.yaw - 360.0;
 
   return angles;
 }
@@ -484,25 +477,14 @@ EulerAngles LSM9DS1::update() {
 
   //  Sensor Fusion - updates quaternion 
   if (fusion == SensorFusion::MADGWICK) {
-    madgwickUpdate(filterData(), beta, deltaT);
+    quarternion.madgwickUpdate(filterFormat(), beta, deltaT);
     //  madgwickQuaternionUpdate(ax, ay, az, gx*PI/180.0f, gy*PI/180.0f, gz*PI/180.0f, -mx, my, mz);
   }
   else {
     //  mahonyQuaternionUpdate(ax, ay, az, gx*PI/180.0f, gy*PI/180.0f, gz*PI/180.0f, -mx, my, mz);
   }
 
-  eulerAngels.yawRadians   = atan2(2.0f * (q[1] * q[2] + q[0] * q[3]), q[0] * q[0] + q[1] * q[1] - q[2] * q[2] - q[3] * q[3]);   
-  eulerAngels.pitchRadians = -asin(2.0f * (q[1] * q[3] - q[0] * q[2]));
-  eulerAngels.rollRadians  = atan2(2.0f * (q[0] * q[1] + q[2] * q[3]), q[0] * q[0] - q[1] * q[1] - q[2] * q[2] + q[3] * q[3]);
-
-  eulerAngels.pitch *= 180.0f / PI;
-  eulerAngels.yaw   *= 180.0f / PI; 
-  eulerAngels.yaw   -= declination; // You need to subtract a positive declination.
-  eulerAngels.roll  *= 180.0f / PI;
-
-  // Convert yaw to heading (normal compass degrees)   
-  if (eulerAngels.yaw < 0) eulerAngels.heading = eulerAngels.yaw + 360.0;
-  if (eulerAngels.yaw >= 360.0) eulerAngels.heading = eulerAngels.yaw - 360.0;
+  eulerAngels = quaternion.toEulerAngles(declination);
 
   return eulerAngels;
 }
