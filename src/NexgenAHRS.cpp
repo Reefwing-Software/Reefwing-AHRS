@@ -225,9 +225,6 @@ enum Modr {  // set of allowable mag sample rates
 Quaternion::Quaternion() {
   q0 = 1.0;
   q1 = q2 = q3 = 0.0;
-  eulerAngles.yaw = eulerAngles.pitch = eulerAngles.roll = 0.0;
-  eulerAngles.heading = 0.0;
-  eulerAngles.yawRadians = eulerAngles.pitchRadians = eulerAngles.rollRadians = 0.0;
 }
 
 Quaternion::Quaternion(float w, float x, float y, float z) {
@@ -272,7 +269,7 @@ EulerAngles Quaternion::toEulerAngles(float declination) {
 
   // Convert yaw to heading (normal compass degrees)   
   if (angles.yaw < 0) angles.heading = angles.yaw + 360.0;
-  if (angles.yaw >= 360.0) angles.heading = eulerAngels.yaw - 360.0;
+  if (angles.yaw >= 360.0) angles.heading = angles.yaw - 360.0;
 
   return angles;
 }
@@ -477,7 +474,7 @@ EulerAngles LSM9DS1::update() {
 
   //  Sensor Fusion - updates quaternion 
   if (fusion == SensorFusion::MADGWICK) {
-    quarternion.madgwickUpdate(filterFormat(), beta, deltaT);
+    quaternion.madgwickUpdate(filterFormat(), beta, deltaT);
     //  madgwickQuaternionUpdate(ax, ay, az, gx*PI/180.0f, gy*PI/180.0f, gz*PI/180.0f, -mx, my, mz);
   }
   else {
