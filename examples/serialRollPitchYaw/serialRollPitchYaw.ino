@@ -15,7 +15,7 @@
 #include <NexgenAHRS.h>
 
 LSM9DS1 imu;
-SensorData data;
+EulerAngles angles;
 
 int loopFrequency = 0;
 const long displayPeriod = 1000;
@@ -50,18 +50,18 @@ void setup() {
 
 void loop() {
     //  Check for new IMU data and update angles
-    data = imu.update();
+    angles = imu.update();
 
     //  Display sensor data every displayPeriod, non-blocking.
     if (millis() - previousMillis >= displayPeriod) {
       Serial.print("Roll:\t");
-      Serial.print(data.roll);
+      Serial.print(angles.roll);
       Serial.print(" Pitch:\t");
-      Serial.print(data.pitch);
+      Serial.print(angles.pitch);
       Serial.print(" Yaw:\t");
-      Serial.print(data.yaw);
+      Serial.print(angles.yaw);
       Serial.print(" Heading:\t");
-      Serial.print(data.heading);
+      Serial.print(angles.heading);
       Serial.print(" Loop Frequency:\t");
       Serial.print(loopFrequency);
       Serial.println(" Hz");
