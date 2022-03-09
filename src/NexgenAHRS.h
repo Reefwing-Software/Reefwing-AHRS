@@ -136,6 +136,7 @@ class LSM9DS1 {
         SelfTestResults selfTest();
         BiasOffsets getBiasOffsets();
         SensorData filterFormat();
+        SensorData rawData();
 
     private:
         void readAccelData(int16_t* destination);

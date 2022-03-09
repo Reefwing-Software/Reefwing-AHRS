@@ -486,6 +486,10 @@ EulerAngles LSM9DS1::update() {
   return eulerAngels;
 }
 
+SensorData LSM9DS1::rawData() {
+  return sensorData;
+}
+
 void LSM9DS1::setFusionAlgorithm(SensorFusion algo) {
   fusion = algo;
 }

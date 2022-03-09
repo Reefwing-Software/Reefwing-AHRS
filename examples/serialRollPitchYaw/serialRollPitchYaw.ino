@@ -16,6 +16,7 @@
 
 LSM9DS1 imu;
 EulerAngles angles;
+SensorData rawData;
 
 int loopFrequency = 0;
 const long displayPeriod = 1000;
@@ -34,41 +35,55 @@ void setup() {
   while (!Serial);
 
   if (imu.connected()) {
-      //  Paste your calibration bias offset HERE
-      //  This information comes from the testAndCalibrate.ino 
-      //  sketch in the library examples sub-directory.
-      imu.loadAccBias(0.070862, -0.046570, -0.016907);
-	    imu.loadGyroBias(0.800018, 0.269165, -0.097198);
-	    imu.loadMagBias(-0.192261, -0.012085, 0.118652);
+    Serial.println("LSM9DS1 IMU Connected."); 
 
-      //    This sketch assumes that the LSM9DS1 is already calibrated, 
-      //    If so, start processing IMU data. If not, run the testAndCalibrate 
-      //    sketch first.
-      imu.start();
+    //  Paste your calibration bias offset HERE
+    //  This information comes from the testAndCalibrate.ino 
+    //  sketch in the library examples sub-directory.
+    imu.loadAccBias(0.070862, -0.046570, -0.016907);
+    imu.loadGyroBias(0.800018, 0.269165, -0.097198);
+    imu.loadMagBias(-0.192261, -0.012085, 0.118652);
+
+    //    This sketch assumes that the LSM9DS1 is already calibrated, 
+    //    If so, start processing IMU data. If not, run the testAndCalibrate 
+    //    sketch first.
+    imu.start();
+  } else {
+    Serial.println("LSM9DS1 IMU Not Detected.");
+    while(1);
   }
 }
 
 void loop() {
-    //  Check for new IMU data and update angles
-    angles = imu.update();
+  //  Check for new IMU data and update angles
+  angles = imu.update();
 
-    //  Display sensor data every displayPeriod, non-blocking.
-    if (millis() - previousMillis >= displayPeriod) {
-      Serial.print("Roll:\t");
-      Serial.print(angles.roll);
-      Serial.print(" Pitch:\t");
-      Serial.print(angles.pitch);
-      Serial.print(" Yaw:\t");
-      Serial.print(angles.yaw);
-      Serial.print(" Heading:\t");
-      Serial.print(angles.heading);
-      Serial.print(" Loop Frequency:\t");
-      Serial.print(loopFrequency);
-      Serial.println(" Hz");
+  //  Display sensor data every displayPeriod, non-blocking.
+  if (millis() - previousMillis >= displayPeriod) {
+    rawData = imu.rawData();
 
-      loopFrequency = 0;
-      previousMillis = millis();
-    }
+    Serial.print("Raw ax, ay, az: ");
+    Serial.print(rawData.ax, rawData.ay, rawData.az);
+    Serial.print("  gx, gy, gz: ");
+    Serial.print(rawData.gx, rawData.gy, rawData.gz);
+    Serial.print("  mx, my, mz: ");
+    Serial.println(rawData.mx, rawData.my, rawData.mz);
 
-    loopFrequency++;
+    Serial.print("\nRoll:\t");
+    Serial.print(angles.roll);
+    Serial.print(" Pitch:\t");
+    Serial.print(angles.pitch);
+    Serial.print(" Yaw:\t");
+    Serial.print(angles.yaw);
+    Serial.print(" Heading:\t");
+    Serial.print(angles.heading);
+    Serial.print(" Loop Frequency:\t");
+    Serial.print(loopFrequency);
+    Serial.println(" Hz");
+
+    loopFrequency = 0;
+    previousMillis = millis();
+  }
+
+  loopFrequency++;
 }
