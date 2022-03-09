@@ -71,23 +71,16 @@ void loop() {
     //  Serial.print("mx = "); Serial.print(1000*data.mx ); 
     //  Serial.print(" my = "); Serial.print(1000*data.my ); 
     //  Serial.print(" mz = "); Serial.print(1000*data.mz ); Serial.println(" mG");
-
-    Quaternion q = imu.getQuaternion();
-
-    Serial.print("q0: "); Serial.print(q.q0);
-    Serial.print(",  q1: "); Serial.print(q.q1);
-    Serial.print(",  q2: "); Serial.print(q.q2);
-    Serial.print(",  q3: "); Serial.println(q.q3);
       
-    Serial.print("\nRoll:\t");
+    Serial.print("Roll: ");
     Serial.print(angles.roll);
-    Serial.print(" Pitch:\t");
+    Serial.print("\tPitch: ");
     Serial.print(angles.pitch);
-    Serial.print(" Yaw:\t");
+    Serial.print("\tYaw: ");
     Serial.print(angles.yaw);
-    Serial.print(" Heading:\t");
+    Serial.print("\tHeading: ");
     Serial.print(angles.heading);
-    Serial.print(" Loop Frequency:\t");
+    Serial.print("\tLoop Frequency: ");
     Serial.print(loopFrequency);
     Serial.println(" Hz");
 
