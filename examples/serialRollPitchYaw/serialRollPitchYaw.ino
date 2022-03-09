@@ -16,7 +16,6 @@
 
 LSM9DS1 imu;
 EulerAngles angles;
-SensorData data;
 
 int loopFrequency = 0;
 const long displayPeriod = 1000;
@@ -60,17 +59,25 @@ void loop() {
 
   //  Display sensor data every displayPeriod, non-blocking.
   if (millis() - previousMillis >= displayPeriod) {
-    data = imu.rawData();
 
-    Serial.print("ax = "); Serial.print(1000*data.ax);  
-    Serial.print(" ay = "); Serial.print(1000*data.ay); 
-    Serial.print(" az = "); Serial.print(1000*data.az); Serial.println(" mg");
-    Serial.print("gx = "); Serial.print( data.gx, 2); 
-    Serial.print(" gy = "); Serial.print( data.gy, 2); 
-    Serial.print(" gz = "); Serial.print( data.gz, 2); Serial.println(" deg/s");
-    Serial.print("mx = "); Serial.print(1000*data.mx ); 
-    Serial.print(" my = "); Serial.print(1000*data.my ); 
-    Serial.print(" mz = "); Serial.print(1000*data.mz ); Serial.println(" mG");
+    //  Uncomment to DEBUG raw sensor data:
+    //  SensorData data = imu.rawData();
+    //  Serial.print("ax = "); Serial.print(1000*data.ax);  
+    //  Serial.print(" ay = "); Serial.print(1000*data.ay); 
+    //  Serial.print(" az = "); Serial.print(1000*data.az); Serial.println(" mg");
+    //  Serial.print("gx = "); Serial.print( data.gx, 2); 
+    //  Serial.print(" gy = "); Serial.print( data.gy, 2); 
+    //  Serial.print(" gz = "); Serial.print( data.gz, 2); Serial.println(" deg/s");
+    //  Serial.print("mx = "); Serial.print(1000*data.mx ); 
+    //  Serial.print(" my = "); Serial.print(1000*data.my ); 
+    //  Serial.print(" mz = "); Serial.print(1000*data.mz ); Serial.println(" mG");
+
+    Quaternion q = imu.getQuaternion();
+
+    Serial.print("q0: "); Serial.print(q.q0);
+    Serial.print(",  q1: "); Serial.print(q.q1);
+    Serial.print(",  q2: "); Serial.print(q.q2);
+    Serial.println(",  q3: "); Serial.print(q.q3);
       
     Serial.print("\nRoll:\t");
     Serial.print(angles.roll);
