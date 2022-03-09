@@ -77,7 +77,7 @@ void loop() {
     Serial.print("q0: "); Serial.print(q.q0);
     Serial.print(",  q1: "); Serial.print(q.q1);
     Serial.print(",  q2: "); Serial.print(q.q2);
-    Serial.println(",  q3: "); Serial.print(q.q3);
+    Serial.print(",  q3: "); Serial.println(q.q3);
       
     Serial.print("\nRoll:\t");
     Serial.print(angles.roll);
