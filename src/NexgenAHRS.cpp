@@ -268,10 +268,10 @@ EulerAngles Quaternion::toEulerAngles(float declination) {
   angles.roll  = angles.rollRadians * 180.0f / M_PI;
 
   // Convert yaw to heading (normal compass degrees)   
-  if (angles.yaw < 0) angles.heading = angles.yaw + 360.0;
-  if (angles.yaw >= 360.0) angles.heading = angles.yaw - 360.0;
+  if (angles.yaw < 0) angles.yaw = angles.yaw + 360.0;
+  if (angles.yaw >= 360.0) angles.yaw = angles.yaw - 360.0;
 
-  angles.heading -= declination; // You need to subtract a positive declination.
+  angles.heading = angles.yaw - declination; // You need to subtract a positive declination.
 
   return angles;
 }
