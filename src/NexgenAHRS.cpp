@@ -490,6 +490,10 @@ SensorData LSM9DS1::rawData() {
   return sensorData;
 }
 
+Quaternion LSM9DS1::getQuaternion() {
+  return quaternion;
+}
+
 void LSM9DS1::setFusionAlgorithm(SensorFusion algo) {
   fusion = algo;
 }

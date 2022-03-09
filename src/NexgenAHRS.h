@@ -132,6 +132,7 @@ class LSM9DS1 {
         void loadGyroBias(float gxB, float gyB, float gzB);
         void loadMagBias(float mxB, float myB, float mzB);
 
+        Quaternion getQuaternion();
         EulerAngles update();
         SelfTestResults selfTest();
         BiasOffsets getBiasOffsets();
