@@ -262,10 +262,10 @@ EulerAngles Quaternion::toEulerAngles(float declination) {
   angles.pitchRadians = -asin(2.0f * (q1 * q3 - q0 * q2));
   angles.rollRadians  = atan2(2.0f * (q0 * q1 + q2 * q3), q0 * q0 - q1 * q1 - q2 * q2 + q3 * q3);
 
-  angles.pitch *= 180.0f / PI;
-  angles.yaw   *= 180.0f / PI; 
+  angles.pitch *= 180.0f / M_PI;
+  angles.yaw   *= 180.0f / M_PI; 
   angles.yaw   -= declination; // You need to subtract a positive declination.
-  angles.roll  *= 180.0f / PI;
+  angles.roll  *= 180.0f / M_PI;
 
   // Convert yaw to heading (normal compass degrees)   
   if (angles.yaw < 0) angles.heading = angles.yaw + 360.0;
@@ -394,8 +394,8 @@ void LSM9DS1::begin() {
     Mmode = MMode_HighPerformance;  // magnetometer operation mode
 
     //  Sensor Fusion Co-Efficients - see README.md
-    gyroMeasError = PI * (40.0f / 180.0f);   // gyroscope measurement error in rads/s (start at 40 deg/s)
-    gyroMeasDrift = PI * (0.0f  / 180.0f);   // gyroscope measurement drift in rad/s/s (start at 0.0 deg/s/s)
+    gyroMeasError = M_PI * (40.0f / 180.0f);   // gyroscope measurement error in rads/s (start at 40 deg/s)
+    gyroMeasDrift = M_PI * (0.0f  / 180.0f);   // gyroscope measurement drift in rad/s/s (start at 0.0 deg/s/s)
     beta = sqrt(3.0f / 4.0f) * gyroMeasError;   // compute beta
     zeta = sqrt(3.0f / 4.0f) * gyroMeasDrift;   // compute zeta, the other free parameter in the Madgwick scheme usually set to a small or zero value
     Kp = 2.0f * 5.0f; // These are the free parameters in the Mahony filter and fusion scheme, Kp for proportional feedback, Ki for integral
@@ -475,10 +475,10 @@ EulerAngles LSM9DS1::update() {
   //  Sensor Fusion - updates quaternion 
   if (fusion == SensorFusion::MADGWICK) {
     quaternion.madgwickUpdate(filterFormat(), beta, deltaT);
-    //  madgwickQuaternionUpdate(ax, ay, az, gx*PI/180.0f, gy*PI/180.0f, gz*PI/180.0f, -mx, my, mz);
+    //  madgwickQuaternionUpdate(ax, ay, az, gx*M_PI/180.0f, gy*M_PI/180.0f, gz*M_PI/180.0f, -mx, my, mz);
   }
   else {
-    //  mahonyQuaternionUpdate(ax, ay, az, gx*PI/180.0f, gy*PI/180.0f, gz*PI/180.0f, -mx, my, mz);
+    //  mahonyQuaternionUpdate(ax, ay, az, gx*M_PI/180.0f, gy*M_PI/180.0f, gz*M_PI/180.0f, -mx, my, mz);
   }
 
   eulerAngels = quaternion.toEulerAngles(declination);
@@ -633,9 +633,9 @@ SensorData LSM9DS1::filterFormat() {
   filterData.ay = sensorData.ay;
   filterData.az = sensorData.az;
 
-  filterData.gx = sensorData.gx * PI/180.0;
-  filterData.gy = sensorData.gy * PI/180.0;
-  filterData.gz = sensorData.gz * PI/180.0;
+  filterData.gx = sensorData.gx * M_PI/180.0;
+  filterData.gy = sensorData.gy * M_PI/180.0;
+  filterData.gz = sensorData.gz * M_PI/180.0;
 
   filterData.mx = -sensorData.mx;
   filterData.my = sensorData.my;
