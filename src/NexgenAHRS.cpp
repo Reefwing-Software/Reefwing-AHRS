@@ -369,8 +369,93 @@ void Quaternion::madgwickUpdate(SensorData data, float beta, float deltaT) {
   q3 = q3 * norm;
 }
 
-void Quaternion::mahoneyUpdate(SensorData data) {
+void Quaternion::mahoneyUpdate(SensorData data, float Kp, float Ki, float deltaT) {
+  float norm;
+  float hx, hy, bx, bz;
+  float vx, vy, vz, wx, wy, wz;
+  float ex, ey, ez;
+  float pa, pb, pc;
 
+  // Auxiliary variables to avoid repeated arithmetic
+  float q0q0 = q0 * q0;
+  float q0q1 = q0 * q1;
+  float q0q2 = q0 * q2;
+  float q0q3 = q0 * q3;
+  float q1q1 = q1 * q1;
+  float q1q2 = q1 * q2;
+  float q1q3 = q1 * q3;
+  float q2q2 = q2 * q2;
+  float q2q3 = q2 * q3;
+  float q3q3 = q3 * q3;   
+
+  // Normalise accelerometer measurement
+  norm = sqrtf(data.ax * data.ax + data.ay * data.ay + data.az * data.az);
+  if (norm == 0.0f) return; // handle NaN
+  norm = 1.0f / norm;        // use reciprocal for division
+  data.ax *= norm;
+  data.ay *= norm;
+  data.az *= norm;
+
+  // Normalise magnetometer measurement
+  norm = sqrtf(data.mx * data.mx + data.my * data.my + data.mz * data.mz);
+  if (norm == 0.0f) return; // handle NaN
+  norm = 1.0f / norm;        // use reciprocal for division
+  data.mx *= norm;
+  data.my *= norm;
+  data.mz *= norm;
+
+  // Reference direction of Earth's magnetic field
+  hx = 2.0f * data.mx * (0.5f - q2q2 - q3q3) + 2.0f * data.my * (q1q2 - q0q3) + 2.0f * data.mz * (q1q3 + q0q2);
+  hy = 2.0f * data.mx * (q1q2 + q0q3) + 2.0f * data.my * (0.5f - q1q1 - q3q3) + 2.0f * data.mz * (q2q3 - q0q1);
+  bx = sqrtf((hx * hx) + (hy * hy));
+  bz = 2.0f * data.mx * (q1q3 - q0q2) + 2.0f * data.my * (q2q3 + q0q1) + 2.0f * data.mz * (0.5f - q1q1 - q2q2);
+
+  // Estimated direction of gravity and magnetic field
+  vx = 2.0f * (q1q3 - q0q2);
+  vy = 2.0f * (q0q1 + q2q3);
+  vz = q0q0 - q1q1 - q2q2 + q3q3;
+  wx = 2.0f * bx * (0.5f - q2q2 - q3q3) + 2.0f * bz * (q1q3 - q0q2);
+  wy = 2.0f * bx * (q1q2 - q0q3) + 2.0f * bz * (q0q1 + q2q3);
+  wz = 2.0f * bx * (q0q2 + q1q3) + 2.0f * bz * (0.5f - q1q1 - q2q2);  
+
+  // Error is cross product between estimated direction and measured direction of gravity
+  ex = (data.ay * vz - data.az * vy) + (data.my * wz - data.mz * wy);
+  ey = (data.az * vx - data.ax * vz) + (data.mz * wx - data.mx * wz);
+  ez = (data.ax * vy - data.ay * vx) + (data.mx * wy - data.my * wx);
+  if (Ki > 0.0f)
+  {
+      eInt[0] += ex;      // accumulate integral error
+      eInt[1] += ey;
+      eInt[2] += ez;
+  }
+  else
+  {
+      eInt[0] = 0.0f;     // prevent integral wind up
+      eInt[1] = 0.0f;
+      eInt[2] = 0.0f;
+  }
+
+  // Apply feedback terms
+  data.gx = data.gx + Kp * ex + Ki * eInt[0];
+  data.gy = data.gy + Kp * ey + Ki * eInt[1];
+  data.gz = data.gz + Kp * ez + Ki * eInt[2];
+
+  // Integrate rate of change of quaternion
+  pa = q1;
+  pb = q2;
+  pc = q3;
+  q0 = q0 + (-q1 * data.gx - q2 * data.gy - q3 * data.gz) * (0.5f * deltat);
+  q1 = pa + (q0 * data.gx + pb * data.gz - pc * data.gy) * (0.5f * deltat);
+  q2 = pb + (q0 * data.gy - pa * data.gz + pc * data.gx) * (0.5f * deltat);
+  q3 = pc + (q0 * data.gz + pa * data.gy - pb * data.gx) * (0.5f * deltat);
+
+  // Normalise quaternion
+  norm = sqrtf(q0 * q0 + q1 * q1 + q2 * q2 + q3 * q3);
+  norm = 1.0f / norm;
+  q0 = q0 * norm;
+  q1 = q1 * norm;
+  q2 = q2 * norm;
+  q3 = q3 * norm;
 }
 
 /******************************************************************
@@ -477,10 +562,9 @@ EulerAngles LSM9DS1::update() {
   //  Sensor Fusion - updates quaternion 
   if (fusion == SensorFusion::MADGWICK) {
     quaternion.madgwickUpdate(filterFormat(), beta, deltaT);
-    //  madgwickQuaternionUpdate(ax, ay, az, gx*M_PI/180.0f, gy*M_PI/180.0f, gz*M_PI/180.0f, -mx, my, mz);
   }
   else {
-    //  mahonyQuaternionUpdate(ax, ay, az, gx*M_PI/180.0f, gy*M_PI/180.0f, gz*M_PI/180.0f, -mx, my, mz);
+    quaternion.mahoneyUpdate(filterFormat(), Kp, Ki, deltaT);
   }
 
   eulerAngels = quaternion.toEulerAngles(declination);

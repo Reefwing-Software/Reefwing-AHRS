@@ -72,7 +72,7 @@ struct BiasOffsets {
 };
 
 struct EulerAngles {
-  //  Tait-Bryan Euler angles, commonly used in aircraft orientation.
+  //  Tait-Bryan Euler Angles, commonly used for aircraft orientation.
   float roll, pitch, yaw, heading;
   float rollRadians, pitchRadians, yawRadians;
 };
@@ -97,9 +97,12 @@ class Quaternion {
 
     EulerAngles toEulerAngles(float declination = 0.0);
     void madgwickUpdate(SensorData data, float beta, float deltaT); 
-    void mahoneyUpdate(SensorData data);
+    void mahoneyUpdate(SensorData data, float Kp, float Ki, float deltaT);
 
     float q0, q1, q2, q3;      //  Euler Parameters
+
+  private:
+    float eInt[3] = {0.0f, 0.0f, 0.0f};       // vector to hold integral error for Mahony method
 };
 
 /******************************************************************
@@ -109,62 +112,60 @@ class Quaternion {
  ******************************************************************/
 
 class LSM9DS1 {
-    public:
-        LSM9DS1();
+  public:
+    LSM9DS1();
 
-        void begin();
-        void start();
-        bool connected();
-        uint8_t whoAmIGyro();
-        uint8_t whoAmIMag();
-        float readGyroTemp();
-        void setAccResolution(Ascale ascale);
-        void setGyroResolution(Gscale gscale);
-        void setMagResolution(Mscale mscale);
-        float getAccResolution();
-        float getGyroResolution();
-        float getMagResolution();
-        void calibrateAccGyro();
-        void calibrateMag();
-        void setFusionAlgorithm(SensorFusion algo);
-        void setDeclination(float dec);
-        void loadAccBias(float axB, float ayB, float azB);
-        void loadGyroBias(float gxB, float gyB, float gzB);
-        void loadMagBias(float mxB, float myB, float mzB);
+    void begin();
+    void start();
+    bool connected();
+    uint8_t whoAmIGyro();
+    uint8_t whoAmIMag();
+    float readGyroTemp();
+    void setAccResolution(Ascale ascale);
+    void setGyroResolution(Gscale gscale);
+    void setMagResolution(Mscale mscale);
+    float getAccResolution();
+    float getGyroResolution();
+    float getMagResolution();
+    void calibrateAccGyro();
+    void calibrateMag();
+    void setFusionAlgorithm(SensorFusion algo);
+    void setDeclination(float dec);
+    void loadAccBias(float axB, float ayB, float azB);
+    void loadGyroBias(float gxB, float gyB, float gzB);
+    void loadMagBias(float mxB, float myB, float mzB);
 
-        Quaternion getQuaternion();
-        EulerAngles update();
-        SelfTestResults selfTest();
-        BiasOffsets getBiasOffsets();
-        SensorData filterFormat();
-        SensorData rawData();
+    Quaternion getQuaternion();
+    EulerAngles update();
+    SelfTestResults selfTest();
+    BiasOffsets getBiasOffsets();
+    SensorData filterFormat();
+    SensorData rawData();
 
-    private:
-        void readAccelData(int16_t* destination);
-        void readGyroData(int16_t* destination);
-        void readMagData(int16_t* destination);
-        void writeByte(uint8_t address, uint8_t subAddress, uint8_t data);
-        uint8_t readByte(uint8_t address, uint8_t subAddress);
-        void readBytes(uint8_t address, uint8_t subAddress, uint8_t count, uint8_t* dest);
-        void setBiasOffsets(float* dest1, float* dest2);
-        void setMagneticBias(float* dest1);
-        void copyArray(float* src, float* dst, int len);
+  private:
+    void readAccelData(int16_t* destination);
+    void readGyroData(int16_t* destination);
+    void readMagData(int16_t* destination);
+    void writeByte(uint8_t address, uint8_t subAddress, uint8_t data);
+    uint8_t readByte(uint8_t address, uint8_t subAddress);
+    void readBytes(uint8_t address, uint8_t subAddress, uint8_t count, uint8_t* dest);
+    void setBiasOffsets(float* dest1, float* dest2);
+    void setMagneticBias(float* dest1);
+    void copyArray(float* src, float* dst, int len);
 
-        uint8_t OSR, Godr, Gbw, Aodr, Abw, Modr, Mmode;  
-        uint8_t aScale, gScale, mScale;
-        uint32_t lastUpdate; 
-        float aRes, gRes, mRes; 
-        float deltaT;
-        float gyroBias[3] = {0, 0, 0}, accelBias[3] = {0, 0, 0},  magBias[3] = {0, 0, 0}; 
-        
-        float eInt[3] = {0.0f, 0.0f, 0.0f};       // vector to hold integral error for Mahony method
-        float declination;
-        float gyroMeasError, gyroMeasDrift, beta, zeta, Kp, Ki;
+    uint8_t OSR, Godr, Gbw, Aodr, Abw, Modr, Mmode;  
+    uint8_t aScale, gScale, mScale;
+    uint32_t lastUpdate; 
+    float aRes, gRes, mRes; 
+    float deltaT;
+    float gyroBias[3] = {0, 0, 0}, accelBias[3] = {0, 0, 0},  magBias[3] = {0, 0, 0}; 
+    float declination;
+    float gyroMeasError, gyroMeasDrift, beta, zeta, Kp, Ki;
 
-        SensorData sensorData; // variables to hold latest sensor data values 
-        Quaternion quaternion;
-        EulerAngles eulerAngels;
-        SensorFusion fusion;
+    SensorData sensorData; // variables to hold latest sensor data values 
+    Quaternion quaternion;
+    EulerAngles eulerAngels;
+    SensorFusion fusion;
 };
 
 /******************************************************************
