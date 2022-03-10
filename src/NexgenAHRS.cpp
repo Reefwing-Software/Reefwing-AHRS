@@ -444,10 +444,10 @@ void Quaternion::mahoneyUpdate(SensorData data, float Kp, float Ki, float deltaT
   pa = q1;
   pb = q2;
   pc = q3;
-  q0 = q0 + (-q1 * data.gx - q2 * data.gy - q3 * data.gz) * (0.5f * deltat);
-  q1 = pa + (q0 * data.gx + pb * data.gz - pc * data.gy) * (0.5f * deltat);
-  q2 = pb + (q0 * data.gy - pa * data.gz + pc * data.gx) * (0.5f * deltat);
-  q3 = pc + (q0 * data.gz + pa * data.gy - pb * data.gx) * (0.5f * deltat);
+  q0 = q0 + (-q1 * data.gx - q2 * data.gy - q3 * data.gz) * (0.5f * deltaT);
+  q1 = pa + (q0 * data.gx + pb * data.gz - pc * data.gy) * (0.5f * deltaT);
+  q2 = pb + (q0 * data.gy - pa * data.gz + pc * data.gx) * (0.5f * deltaT);
+  q3 = pc + (q0 * data.gz + pa * data.gy - pb * data.gx) * (0.5f * deltaT);
 
   // Normalise quaternion
   norm = sqrtf(q0 * q0 + q1 * q1 + q2 * q2 + q3 * q3);
