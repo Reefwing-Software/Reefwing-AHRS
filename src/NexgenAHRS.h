@@ -53,7 +53,9 @@ enum class Mscale {  // Set of allowable mag full scale settings
 
 enum class SensorFusion { // Sensor fusion algorithm options
   MADGWICK = 0,
-  MAHONY
+  MAHONY,
+  COMPLEMENTARY,
+  NONE
 };
 
 struct SelfTestResults {
@@ -96,13 +98,16 @@ class Quaternion {
     Quaternion(float yaw, float pitch, float roll);
 
     EulerAngles toEulerAngles(float declination = 0.0);
+
     void madgwickUpdate(SensorData data, float beta, float deltaT); 
     void mahoneyUpdate(SensorData data, float Kp, float Ki, float deltaT);
+    void complementaryUpdate(SensorData data, float alpha, float deltaT);
 
     float q0, q1, q2, q3;      //  Euler Parameters
 
   private:
-    float eInt[3] = {0.0f, 0.0f, 0.0f};       // vector to hold integral error for Mahony method
+    float eInt[3] = {0.0f, 0.0f, 0.0f};       //  Vector to hold integral error for Mahony method
+    float att[4] = {1.0f, 0.0f, 0.0f, 0.0f};  //  Attitude quaternion for complementary filter
 };
 
 /******************************************************************
@@ -130,6 +135,7 @@ class LSM9DS1 {
     void calibrateAccGyro();
     void calibrateMag();
     void setFusionAlgorithm(SensorFusion algo);
+    void setAlpha(float a);
     void setDeclination(float dec);
     void loadAccBias(float axB, float ayB, float azB);
     void loadGyroBias(float gxB, float gyB, float gzB);
@@ -160,7 +166,7 @@ class LSM9DS1 {
     float deltaT;
     float gyroBias[3] = {0, 0, 0}, accelBias[3] = {0, 0, 0},  magBias[3] = {0, 0, 0}; 
     float declination;
-    float gyroMeasError, gyroMeasDrift, beta, zeta, Kp, Ki;
+    float gyroMeasError, gyroMeasDrift, alpha, beta, zeta, Kp, Ki;   //  Sensor Fusion free parameters
 
     SensorData sensorData; // variables to hold latest sensor data values 
     Quaternion quaternion;

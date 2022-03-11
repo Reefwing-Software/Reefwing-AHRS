@@ -1,6 +1,6 @@
 /******************************************************************
-  @file       serialRollPitchYaw.ino
-  @brief      Print roll, pitch, yaw and heading angles
+  @file       complementaryFilter.ino
+  @brief      Test complementary filter on the Nano 33 BLE
   @author     David Such
   @copyright  Please see the accompanying LICENSE file.
 
@@ -22,12 +22,13 @@ const long displayPeriod = 1000;
 unsigned long previousMillis = 0;
 
 void setup() {
-  // Initialise the LSM9DS1 IMU
+  // Initialise the LSM9DS1 IMU and LPS22HB Barometer
   imu.begin();
 
   //  Positive magnetic declination - Sydney, AUSTRALIA
   imu.setDeclination(12.717);
-  imu.setFusionAlgorithm(SensorFusion::MADGWICK);
+  imu.setFusionAlgorithm(SensorFusion::COMPLEMENTARY);
+  imu.setAlpha(0.95);
 
   //  Start Serial and wait for connection
   Serial.begin(115200);
@@ -43,35 +44,21 @@ void setup() {
     imu.loadGyroBias(0.800018, 0.269165, -0.097198);
     imu.loadMagBias(-0.192261, -0.012085, 0.118652);
 
-    //  This sketch assumes that the LSM9DS1 is already calibrated, 
-    //  If so, start processing IMU data. If not, run the testAndCalibrate 
-    //  sketch first.
+    //  Start processing IMU data. If not, run the testAndCalibrate 
     imu.start();
-  } else {
-    Serial.println("LSM9DS1 IMU Not Detected.");
+  }
+  else {
+    Serial.println("LSM9DS1 Accelerometer, Magnetometer and Gyroscope not found.");
     while(1);
   }
 }
 
 void loop() {
-  //  Check for new IMU data and update angles
+    //  Check for new IMU data and update angles
   angles = imu.update();
 
   //  Display sensor data every displayPeriod, non-blocking.
   if (millis() - previousMillis >= displayPeriod) {
-
-    //  Uncomment to DEBUG raw sensor data:
-    //  SensorData data = imu.rawData();
-    //  Serial.print("ax = "); Serial.print(1000*data.ax);  
-    //  Serial.print(" ay = "); Serial.print(1000*data.ay); 
-    //  Serial.print(" az = "); Serial.print(1000*data.az); Serial.println(" mg");
-    //  Serial.print("gx = "); Serial.print( data.gx, 2); 
-    //  Serial.print(" gy = "); Serial.print( data.gy, 2); 
-    //  Serial.print(" gz = "); Serial.print( data.gz, 2); Serial.println(" deg/s");
-    //  Serial.print("mx = "); Serial.print(1000*data.mx ); 
-    //  Serial.print(" my = "); Serial.print(1000*data.my ); 
-    //  Serial.print(" mz = "); Serial.print(1000*data.mz ); Serial.println(" mG");
-      
     Serial.print("Roll: ");
     Serial.print(angles.roll);
     Serial.print("\tPitch: ");

@@ -276,6 +276,58 @@ EulerAngles Quaternion::toEulerAngles(float declination) {
   return angles;
 }
 
+void Quaternion::complementaryUpdate(SensorData data, float alpha, float deltaT) {
+  //  Roll (Theta) and Pitch (Phi) from accelerometer
+  float rollAcc = arctan2(data.ay, data.az);
+  float pitchAcc = arctan2(-data.ax, sqrt(pow(data.ay, 2) + pow(data.az, 2)));
+
+  // Auxiliary variables to avoid repeated arithmetic
+  float _halfdT = deltaT / 2.0f;
+  float _cosTheta = cos(rollAcc);
+  float _cosPhi = cos(pitchAcc);
+  float _sinTheta = sin(rollAcc);
+  float _sinPhi = sin(pitchAcc);
+  float _halfTheta = rollAcc / 2.0f;
+  float _halfPhi = pitchAcc / 2.0f;
+  float _cosHalfTheta = cos(_halfTheta);
+  float _cosHalfPhi = cos(_halfPhi);
+  float _sinHalfTheta = sin(_halfTheta);
+  float _sinHalfPhi = sin(_halfPhi);
+
+  //  Calculate Attitude Quaternion
+  //  ref: https://ahrs.readthedocs.io/en/latest/filters/complementary.html
+  att[0] = att[0] - _halfdT * data.gx * att[1] - _halfdT * data.gy * att[2] - _halfdT * data.gz * att[3];
+  att[1] = att[1] + _halfdT * data.gx * att[0] - _halfdT * data.gy * att[3] + _halfdT * data.gz * att[2];
+  att[2] = att[2] + _halfdT * data.gx * att[3] + _halfdT * data.gy * att[0] - _halfdT * data.gz * att[1];
+  att[3] = att[3] - _halfdT * data.gx * att[2] + _halfdT * data.gy * att[1] + _halfdT * data.gz * att[0];
+
+  //  Calculate Tilt Vector [bx by bz] and tilt adjusted yaw (Psi) using accelerometer data
+  float bx = data.mx * _cosTheta + data.my * _sinTheta * _sinPhi + data.mz * _sinTheta * _cosPhi;
+  float by = data.my * _cosPhi - data.mz * _sinPhi;
+  float bz = -data.mx * _sinTheta + data.my * _cosTheta * _sinPhi + data.mz * _cosTheta * _cosPhi;
+
+  float yaw = arctan2(-by, bx);
+
+  // More auxiliary variables to avoid repeated arithmetic
+  float _halfPsi = yaw / 2.0f;
+  float _cosHalfPsi = cos(_halfPsi);
+  float _sinHalfPsi = sin(_halfPsi);
+
+  //  Convert Accelerometer & Magnetometer roll, pitch & yaw to quaternion (qam)
+  float qam[4];  
+
+  qam[0] = _cosHalfPhi * _cosHalfTheta * _cosHalfPsi + _sinHalfPhi * _sinHalfTheta * _sinHalfPsi;
+  qam[1] = _sinHalfPhi * _cosHalfTheta * _cosHalfPsi - _cosHalfPhi * _sinHalfTheta * _sinHalfPsi;
+  qam[2] = _cosHalfPhi * _sinHalfTheta * _cosHalfPsi + _sinHalfPhi * _cosHalfTheta * _sinHalfPsi;
+  qam[3] = _cosHalfPhi * _cosHalfTheta * _sinHalfPsi - _sinHalfPsi * _sinHalfTheta * _cosHalfPsi;
+
+  //  Fuse attitude quaternion (att) with qam using complementary filter
+  q0 = alpha * att[0] + (1 - alpha) * qam[0];
+  q1 = alpha * att[1] + (1 - alpha) * qam[1];
+  q2 = alpha * att[2] + (1 - alpha) * qam[2];
+  q3 = alpha * att[3] + (1 - alpha) * qam[3];
+}
+
 void Quaternion::madgwickUpdate(SensorData data, float beta, float deltaT) {
   float norm;
   float hx, hy, _2bx, _2bz;
@@ -422,17 +474,15 @@ void Quaternion::mahoneyUpdate(SensorData data, float Kp, float Ki, float deltaT
   ex = (data.ay * vz - data.az * vy) + (data.my * wz - data.mz * wy);
   ey = (data.az * vx - data.ax * vz) + (data.mz * wx - data.mx * wz);
   ez = (data.ax * vy - data.ay * vx) + (data.mx * wy - data.my * wx);
-  if (Ki > 0.0f)
-  {
-      eInt[0] += ex;      // accumulate integral error
-      eInt[1] += ey;
-      eInt[2] += ez;
+  if (Ki > 0.0f) {
+    eInt[0] += ex;      // accumulate integral error
+    eInt[1] += ey;
+    eInt[2] += ez;
   }
-  else
-  {
-      eInt[0] = 0.0f;     // prevent integral wind up
-      eInt[1] = 0.0f;
-      eInt[2] = 0.0f;
+  else {
+    eInt[0] = 0.0f;     // prevent integral wind up
+    eInt[1] = 0.0f;
+    eInt[2] = 0.0f;
   }
 
   // Apply feedback terms
@@ -467,38 +517,39 @@ void Quaternion::mahoneyUpdate(SensorData data, float Kp, float Ki, float deltaT
 LSM9DS1::LSM9DS1() { }
 
 void LSM9DS1::begin() {
-    Wire1.begin();
-    writeByte(LSM9DS1XG_ADDRESS, LSM9DS1XG_CTRL_REG8, 0x05);
-    writeByte(LSM9DS1M_ADDRESS, LSM9DS1M_CTRL_REG2_M, 0x0c);
+  Wire1.begin();
+  writeByte(LSM9DS1XG_ADDRESS, LSM9DS1XG_CTRL_REG8, 0x05);
+  writeByte(LSM9DS1M_ADDRESS, LSM9DS1M_CTRL_REG2_M, 0x0c);
 
-    //  Default configuration
-    OSR = ADC_4096;      // set pressure amd temperature oversample rate
-    Godr = GODR_238Hz;   // gyro data sample rate
-    Gbw = GBW_med;       // gyro data bandwidth
-    Aodr = AODR_238Hz;   // accel data sample rate
-    Abw = ABW_50Hz;      // accel data bandwidth
-    Modr = MODR_10Hz;    // mag data sample rate
-    Mmode = MMode_HighPerformance;  // magnetometer operation mode
+  //  Default configuration
+  OSR = ADC_4096;      // set pressure amd temperature oversample rate
+  Godr = GODR_238Hz;   // gyro data sample rate
+  Gbw = GBW_med;       // gyro data bandwidth
+  Aodr = AODR_238Hz;   // accel data sample rate
+  Abw = ABW_50Hz;      // accel data bandwidth
+  Modr = MODR_10Hz;    // mag data sample rate
+  Mmode = MMode_HighPerformance;  // magnetometer operation mode
 
-    //  Sensor Fusion Co-Efficients - see README.md
-    gyroMeasError = M_PI * (40.0f / 180.0f);   // gyroscope measurement error in rads/s (start at 40 deg/s)
-    gyroMeasDrift = M_PI * (0.0f  / 180.0f);   // gyroscope measurement drift in rad/s/s (start at 0.0 deg/s/s)
-    beta = sqrt(3.0f / 4.0f) * gyroMeasError;   // compute beta
-    zeta = sqrt(3.0f / 4.0f) * gyroMeasDrift;   // compute zeta, the other free parameter in the Madgwick scheme usually set to a small or zero value
-    Kp = 2.0f * 5.0f; // These are the free parameters in the Mahony filter and fusion scheme, Kp for proportional feedback, Ki for integral
-    Ki = 0.0f;
+  //  Sensor Fusion Co-Efficients - see README.md
+  gyroMeasError = M_PI * (40.0f / 180.0f);   // gyroscope measurement error in rads/s (start at 40 deg/s)
+  gyroMeasDrift = M_PI * (0.0f  / 180.0f);   // gyroscope measurement drift in rad/s/s (start at 0.0 deg/s/s)
+  alpha = 0.98; // default complementary filter coefficient
+  beta = sqrt(3.0f / 4.0f) * gyroMeasError;   // compute beta
+  zeta = sqrt(3.0f / 4.0f) * gyroMeasDrift;   // compute zeta, the other free parameter in the Madgwick scheme usually set to a small or zero value
+  Kp = 2.0f * 5.0f; // These are the free parameters in the Mahony filter and fusion scheme, Kp for proportional feedback, Ki for integral
+  Ki = 0.0f;
 
-    //  Scale resolutions per LSB for each sensor
-    //  sets aRes, gRes, mRes and aScale, gScale, mScale
-    setAccResolution(Ascale::AFS_2G);
-    setGyroResolution(Gscale::GFS_245DPS);
-    setMagResolution(Mscale::MFS_4G);
+  //  Scale resolutions per LSB for each sensor
+  //  sets aRes, gRes, mRes and aScale, gScale, mScale
+  setAccResolution(Ascale::AFS_2G);
+  setGyroResolution(Gscale::GFS_245DPS);
+  setMagResolution(Mscale::MFS_4G);
 
-    //  Set default sensor fusion algorithm
-    setFusionAlgorithm(SensorFusion::MADGWICK);
+  //  Set default sensor fusion algorithm
+  setFusionAlgorithm(SensorFusion::MADGWICK);
 
-    //  Set default magnetic declination - Sydney, NSW, AUSTRALIA
-    setDeclination(12.717);
+  //  Set default magnetic declination - Sydney, NSW, AUSTRALIA
+  setDeclination(12.717);
 }
 
 void LSM9DS1::start() {  
@@ -560,11 +611,18 @@ EulerAngles LSM9DS1::update() {
   lastUpdate = now;
 
   //  Sensor Fusion - updates quaternion 
-  if (fusion == SensorFusion::MADGWICK) {
-    quaternion.madgwickUpdate(filterFormat(), beta, deltaT);
-  }
-  else {
-    quaternion.mahoneyUpdate(filterFormat(), Kp, Ki, deltaT);
+  switch (fusion) {
+    case SensorFusion::MADGWICK:
+      quaternion.madgwickUpdate(filterFormat(), beta, deltaT);
+      break;
+    case SensorFusion::MAHONY:
+      quaternion.mahoneyUpdate(filterFormat(), Kp, Ki, deltaT);
+      break;
+    case SensorFusion::COMPLEMENTARY:
+      quaternion.complementaryUpdate(filterFormat(), alpha, deltaT);
+      break;
+    case SensorFusion::NONE:
+      break;
   }
 
   eulerAngels = quaternion.toEulerAngles(declination);
@@ -586,6 +644,10 @@ void LSM9DS1::setFusionAlgorithm(SensorFusion algo) {
 
 void LSM9DS1::setDeclination(float dec) {
   declination = dec;
+}
+
+void setAlpha(float a) {
+  alpha = constrain(a, 0.0, 1.0);
 }
 
 uint8_t LSM9DS1::whoAmIGyro() {

@@ -1,10 +1,22 @@
 # Nexgen AHRS
  
- Our Magpie flight controller for quadcopters is based around the Arduino Nano 33 BLE board. This board includes the LSM9DS1 chip which we use as an Inertial Measurement Unit (IMU). In other words it determines the current orientation of the drone. 
+ Our Magpie flight controller for quadcopters is based around the Arduino Nano 33 BLE board. This board includes the LSM9DS1 chip which we use as an Inertial Measurement Unit (IMU). The IMU determines the current orientation of the drone. 
 
- The Nexgen AHRS library provides an Attitude and Heading Reference System (AHRS) class for use with the Nano 33 BLE and the Nano 33 BLE SENSE.
+ The Nexgen AHRS library provides an Attitude and Heading Reference System (AHRS) class for use with the Arduino Nano 33 BLE and the Nano 33 BLE SENSE boards.
 
  The AHRS will convert the gyroscope rate and accelerometer force data to a roll and pitch angle. The yaw angle is then calculated using the pitch, roll and magnetometer data. 
+
+ ## Sensor Fusion
+
+ Sensor fusion is the process of combining sensory data or data derived from disparate sources such that the resulting information has less uncertainty than would be possible when these sources were used individually. With the gyroscope and accelerometer, we have two angle sensors which should be providing the same data but with different errors. The concept is to combine or fuse the data in such a way as to eliminate the errors and produce an accurate angle that we can use.
+
+ The Nexgen AHRS provides the following Sensor Fusion options:
+
+ - Complementary Filter
+ - Madgwick Filter
+ - Mahony Filter
+
+ We found that we experienced significant gyroscopic drift with the complementary filter. The Madgwick and Mahony filters fixes this issue but take a bit longer to settle on an angle. Mahony is a bit faster than Madgwick, but the best filter and associated free parameter settings will depend on the application.
 
  ## Aircraft Reference Frame
  
@@ -28,9 +40,7 @@
 
 Heading is similar to yaw and defined as the angle between the X Axis and magnetic north on the horizontal plane measured in a clockwise direction when viewing from the top of the drone. Thus, a heading angle of 0° will point towards the North, and +90° towards the East.
 
-The key difference between the Aircraft Reference Frame and the World Reference Frame is the origin. They can initially be the same point but once the drone moves, the co-ordinates will be different.
-
-The World Reference Frame is useful in flight planning or return to home failsafe scenarios where we need to know the location of the drone and where it came from. For any sort of accuracy you will need to complement the IMU with a GPS for this type of mission. Some filter libraries (e.g., Madgewick fusion algorithm) also expect co-ordinates in the NED format.
+The World Reference Frame is useful in flight planning or return to home failsafe scenarios where we need to know the location of the drone and where it came from. For any sort of accuracy you will need to complement the IMU with a GPS for this type of mission. Some filter libraries (e.g., the Madgewick fusion algorithm which we are using) also expect co-ordinates in the NED format.
  
 ## Inertial Navigation
 
@@ -46,6 +56,84 @@ An accelerometer is an electromechanical device used to measure acceleration for
 
 A magnetometer is an instrument used for measuring magnetic forces, and in our context, the earth’s magnetism. The Earth’s magnetic field is a 3-dimensional vector that, like gravity, can be used to determine long-term orientation. The typical magnitude of the Earth’s magnetic field is between 20 µT and 70 µT.
 
+## How to Use the Nexgen AHRS Library
+
+The Nexgen AHRS Library includes the following classes:
+
+  - Quaternion: converts Euler Angles to a Quaternion and includes open source madgwick and mahoney sensor fusion quaternion update methods.
+  - LSM9DS1: for testing, calibrating and reading the IMU data from the sensor.
+  - LPS22HB: to read the barometer pressure data if available (fitted to the Nano 33 BLE SENSE version only).
+
+Tait-Bryan angles as well as Euler angles are non-commutative; that is, the get the correct orientation the rotations must be applied in the correct order which for this configuration is yaw, pitch, and then roll.
+
+The Quaternion class is used by the LSM9DS1 class to provide fast updates to the roll, pitch and yaw Euler Angles derived from the IMU. The quaternion is a mathematical representation of the rotation matrix which describes a unique location in 3D space for our sensor.
+
+At its simplest, a sketch will include:
+
+```c++
+#include <NexgenAHRS.h>
+
+LSM9DS1 imu;
+EulerAngles angles;
+
+void setup() {
+  imu.begin();  //  Initialise the LSM9DS1 IMU
+  imu.start();  //  Start processing sensor data
+}
+
+void loop() {
+  angles = imu.update();  //  Check for new IMU data and update angles
+}
+```
+
+Normally you would run the test and calibrate sketch first to obtain the gyro, acc and mag biases for your board, see the `serialRollPitchYaw.ino` example sketch for how these are applied.
+
+The EulerAngles data structure returned by the `imu.update()` method is defined as:
+
+```c++
+struct EulerAngles {
+  //  Tait-Bryan Euler Angles, commonly used for aircraft orientation.
+  float roll, pitch, yaw, heading;
+  float rollRadians, pitchRadians, yawRadians;
+};
+```
+
+You can also access the raw sensor data from the accelerometer, gyroscope and magnetometer using the `rawData()` method. For example,
+
+```c++
+SensorData data = imu.rawData();
+```
+
+The SensorData structure contains:
+
+```c++
+struct SensorData {
+  float ax, ay, az;
+  float gx, gy, gz;
+  float mx, my, mz;
+};
+```
+
+The LSM9DS1 class provides access to the quaternion which contains the latest fused sensor values with the `getQuaternion()` method. For example:
+
+```c++
+Quaternion quaternion = imu.getQuaternion();
+```
+
+The Quaternion class object includes the Euler Parameters:
+
+```c++
+float q0, q1, q2, q3;      //  Euler Parameters
+```
+
+The Quaternion class has a method for returning the associated Euler Angles:
+
+```c++
+EulerAngles toEulerAngles(float declination = 0.0);
+```
+
+The declination is an optional parameter in this method. The yaw angle is relative to magnetic north, including the magnetic declination for your area will correct this to a heading which indicates the angle to true north.
+
  ## Examples
 
  ### 1. IMU Configuration
@@ -58,10 +146,11 @@ The `imuConfig.ino` sketch will test if the gyroscope, magnetometer and accelero
 #define LPS22HB_WHO_AM_I_VALUE      0xB1
 ```
 
-If the LSM9DS1 IMU is connected, the sketch will print out the Gyro chip temperature and default sensitivities for the three IMU sensors. The linear acceleration sensitivity is given in units of mg/LSB. This means milli-G's (1G = 9.8ms^-2) per Least Significant Bit. This is the smallest value that the sensor can return. Similarly, magnetic sensitivity is given in mGauss/LSB and angular rate sensitivity is mdps (milli degrees per second)/LSB. The sensitivity of the sensors depends on the full scale value selected (ref: Table 3 in the [LSM9DS1 Data Sheet](https://www.st.com/resource/en/datasheet/lsm9ds1.pdf)).
+If the LSM9DS1 IMU is connected, the sketch will print out the Gyro chip temperature and default sensitivities for the three IMU sensors. The linear acceleration sensitivity is given in units of mg/LSB. This means milli-G's (1G = 9.8ms^-2) per Least Significant Bit. This is the smallest value that the sensor can return. Similarly, magnetic sensitivity is given in mGauss/LSB and angular rate sensitivity is mdps (milli degrees per second)/LSB. 
 
-An angular rate gyroscope is device that produces a positive-going digital output for counterclockwise rotation around the axis considered. Sensitivity describes the gain of the sensor. This value changes very little over temperature and time.
-Magnetic sensor sensitivity also describes the gain of the sensor. 
+The sensitivity of the sensors depends on the full scale value selected (ref: Table 3 in the [LSM9DS1 Data Sheet](https://www.st.com/resource/en/datasheet/lsm9ds1.pdf)).
+
+An angular rate gyroscope is device that produces a positive-going digital output for counterclockwise rotation around the axis considered. Sensitivity describes the gain of the sensor. This value changes very little over temperature and time. Magnetic sensor sensitivity also describes the gain of the sensor. 
 
 ### 2. Self Test and Calibration
 
@@ -71,10 +160,9 @@ Before you use an IMU for the first time, you need to calibrate it. The results 
 
 The LSM9DS1 includes a self test function that is not particularly well documented. To start the Gyro self-test, control register 10, bit ST_G needs to be set to 1. For the accelerometer, control register 10, bit ST_XL is set. The Nexgen AHRS library looks after this in the `selfTest` method. It calculates the average of the IMU at-rest readings and then loads these resulting offsets into the accelerometer and gyroscope bias registers.
 
-An accelerometer in a steady state on a horizontal surface should measure 0 g on both the X-axis and Y-axis, whereas the Z-axis should measure 1 g. Ideally, the output is in the middle of the dynamic range of the sensor. A deviation from the ideal value is called a zero-g offset. Similarly, the gyro zero-rate level describes the actual output signal if there is no angular rate present and zero-gauss level offset describes the deviation of an actual output signal from the
-ideal output if no magnetic field is present.
+An accelerometer in a steady state on a horizontal surface should measure 0 g on both the X-axis and Y-axis, whereas the Z-axis should measure 1 g. Ideally, the output is in the middle of the dynamic range of the sensor. A deviation from the ideal value is called a zero-g offset. Similarly, the gyro zero-rate level describes the actual output signal if there is no angular rate present and zero-gauss level offset describes the deviation of an actual output signal from the ideal output if no magnetic field is present.
 
-Offset is to some extent a result of stress to MEMS sensor and therefore the offset can slightly change after mounting the sensor onto a printed circuit board or exposing it to extensive mechanical stress. Offset changes little with temperature variation. 
+Offset is to some extent a result of stress to MEMS sensor and therefore the offset can slightly change after mounting the sensor onto a printed circuit board or exposing it to extensive mechanical stress (like a drone crash). Offset changes little with temperature variation. 
 
 From the [LSM9DS1 Data Sheet](https://www.st.com/resource/en/datasheet/lsm9ds1.pdf), table 3, typical bias offsets are:
 
@@ -116,14 +204,12 @@ Performing the figure of 8 pattern 'traces out' part of our deformed sphere. Fro
 
 ### 3. Roll, Pitch and Yaw Angles on Serial Port
 
-Define output variables from updated quaternion---these are Tait-Bryan angles, commonly used in aircraft orientation.
-In this coordinate system, the positive z-axis is down toward Earth. 
-Yaw is the angle between Sensor x-axis and Earth magnetic North (or true North if corrected for local declination, looking down on the sensor positive yaw is counterclockwise.
-Pitch is angle between sensor x-axis and Earth ground plane, toward the Earth is positive, up toward the sky is negative.
-Roll is angle between sensor y-axis and Earth ground plane, y-axis up is positive roll.
+This sketch is an example of a simple AHRS. It prints out the roll, pitch, yaw and heading angles to the Serial port every second. It is a good way to explore the capabilities of the library and for deciding which quaternion update method is best suited to your application. Running on a Nano 33 BLE SENSE, the loop frequency was just over 300 Hz (for either filter).
 
-These arise from the definition of the homogeneous rotation matrix constructed from quaternions.
-Tait-Bryan angles as well as Euler angles are non-commutative; that is, the get the correct orientation the rotations must be applied in the correct order which for this configuration is yaw, pitch, and then roll.
+
+
+
+
 
 For more see http://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles.
 
