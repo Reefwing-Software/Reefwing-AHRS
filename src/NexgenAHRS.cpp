@@ -278,8 +278,8 @@ EulerAngles Quaternion::toEulerAngles(float declination) {
 
 void Quaternion::complementaryUpdate(SensorData data, float alpha, float deltaT) {
   //  Roll (Theta) and Pitch (Phi) from accelerometer
-  float rollAcc = arctan2(data.ay, data.az);
-  float pitchAcc = arctan2(-data.ax, sqrt(pow(data.ay, 2) + pow(data.az, 2)));
+  float rollAcc = atan2(data.ay, data.az);
+  float pitchAcc = atan2(-data.ax, sqrt(pow(data.ay, 2) + pow(data.az, 2)));
 
   // Auxiliary variables to avoid repeated arithmetic
   float _halfdT = deltaT / 2.0f;
@@ -306,7 +306,7 @@ void Quaternion::complementaryUpdate(SensorData data, float alpha, float deltaT)
   float by = data.my * _cosPhi - data.mz * _sinPhi;
   float bz = -data.mx * _sinTheta + data.my * _cosTheta * _sinPhi + data.mz * _cosTheta * _cosPhi;
 
-  float yaw = arctan2(-by, bx);
+  float yaw = atan2(-by, bx);
 
   // More auxiliary variables to avoid repeated arithmetic
   float _halfPsi = yaw / 2.0f;
@@ -646,7 +646,7 @@ void LSM9DS1::setDeclination(float dec) {
   declination = dec;
 }
 
-void setAlpha(float a) {
+void LSM9DS1::setAlpha(float a) {
   alpha = constrain(a, 0.0, 1.0);
 }
 

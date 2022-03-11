@@ -44,7 +44,7 @@ void setup() {
     imu.loadGyroBias(0.800018, 0.269165, -0.097198);
     imu.loadMagBias(-0.192261, -0.012085, 0.118652);
 
-    //  Start processing IMU data. If not, run the testAndCalibrate 
+    //  Start processing IMU data.
     imu.start();
   }
   else {
