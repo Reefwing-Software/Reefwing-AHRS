@@ -618,7 +618,7 @@ EulerAngles LSM9DS1::update() {
   //  Sensor Fusion - updates quaternion 
   switch (fusion) {
     case SensorFusion::MADGWICK:
-      quaternion.madgwickUpdate(filterFormat(), beta, deltaT);
+      quaternion.madgwickUpdate(filterFormat(), beta, zeta, deltaT);
       break;
     case SensorFusion::MAHONY:
       quaternion.mahoneyUpdate(filterFormat(), Kp, Ki, deltaT);
@@ -627,7 +627,7 @@ EulerAngles LSM9DS1::update() {
       quaternion.complementaryUpdate(filterFormat(), alpha, deltaT);
       break;
     case SensorFusion::NONE:
-      return updateEulerAngles(deltaT);
+      return updateEulerAngles();
       break;
   }
 
