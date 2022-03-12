@@ -282,13 +282,13 @@ void Quaternion::complementaryUpdate(SensorData data, float alpha, float deltaT)
   float pitchAcc = atan2(-data.ax, sqrt(pow(data.ay, 2) + pow(data.az, 2)));
 
   // Auxiliary variables to avoid repeated arithmetic
-  float _halfdT = deltaT / 2.0f;
+  float _halfdT = deltaT * 0.5f;
   float _cosTheta = cos(rollAcc);
   float _cosPhi = cos(pitchAcc);
   float _sinTheta = sin(rollAcc);
   float _sinPhi = sin(pitchAcc);
-  float _halfTheta = rollAcc / 2.0f;
-  float _halfPhi = pitchAcc / 2.0f;
+  float _halfTheta = rollAcc * 0.5f;
+  float _halfPhi = pitchAcc * 0.5f;
   float _cosHalfTheta = cos(_halfTheta);
   float _cosHalfPhi = cos(_halfPhi);
   float _sinHalfTheta = sin(_halfTheta);
@@ -309,7 +309,7 @@ void Quaternion::complementaryUpdate(SensorData data, float alpha, float deltaT)
   float yaw = atan2(-by, bx);
 
   // More auxiliary variables to avoid repeated arithmetic
-  float _halfPsi = yaw / 2.0f;
+  float _halfPsi = yaw * 0.5f;
   float _cosHalfPsi = cos(_halfPsi);
   float _sinHalfPsi = sin(_halfPsi);
 
@@ -328,7 +328,7 @@ void Quaternion::complementaryUpdate(SensorData data, float alpha, float deltaT)
   q3 = alpha * att[3] + (1 - alpha) * qam[3];
 }
 
-void Quaternion::madgwickUpdate(SensorData data, float beta, float deltaT) {
+void Quaternion::madgwickUpdate(SensorData data, float beta, float zeta, float deltaT) {
   float norm;
   float hx, hy, _2bx, _2bz;
   float s0, s1, s2, s3;
@@ -539,6 +539,11 @@ void LSM9DS1::begin() {
   Kp = 2.0f * 5.0f; // These are the free parameters in the Mahony filter and fusion scheme, Kp for proportional feedback, Ki for integral
   Ki = 0.0f;
 
+  //  Initialise variables used for SensorFusion option - NONE
+  gyrRollAngle  = 0.0;
+  gyrPitchAngle = 0.0;
+  gyrYawAngle   = 0.0;
+
   //  Scale resolutions per LSB for each sensor
   //  sets aRes, gRes, mRes and aScale, gScale, mScale
   setAccResolution(Ascale::AFS_2G);
@@ -622,12 +627,40 @@ EulerAngles LSM9DS1::update() {
       quaternion.complementaryUpdate(filterFormat(), alpha, deltaT);
       break;
     case SensorFusion::NONE:
+      return updateEulerAngles(deltaT);
       break;
   }
 
-  eulerAngels = quaternion.toEulerAngles(declination);
+  eulerAngles = quaternion.toEulerAngles(declination);
 
-  return eulerAngels;
+  return eulerAngles;
+}
+
+EulerAngles LSM9DS1::updateEulerAngles() {
+  gyrRollAngle  += sensorData.gx * deltaT;   // Angle around the X-axis
+  gyrPitchAngle += sensorData.gy * deltaT;   // Angle around the Y-axis
+  gyrYawAngle   += sensorData.gz * deltaT;   // Angle around the Z-axis
+
+  // Convert from force vector to angle using 3 axis formula - result in radians
+  float accRollAngle  =  atan(-1 * sensorData.ay / sqrt(pow(sensorData.ax, 2) + pow(sensorData.az, 2)));
+  float accPitchAngle =  -atan(-1 * sensorData.ax / sqrt(pow(sensorData.ay, 2) + pow(sensorData.az, 2)));
+
+  //  Combine gyro and acc angles using a complementary filter
+  eulerAngles.pitch = alpha * gyrPitchAngle + (1.0f - alpha) * accPitchAngle * RAD_TO_DEG;
+  eulerAngles.roll = alpha * gyrRollAngle + (1.0f - alpha) * accRollAngle * RAD_TO_DEG;
+  eulerAngles.pitchRadians = eulerAngles.pitch * DEG_TO_RAD;
+  eulerAngles.rollRadians = eulerAngles.roll * DEG_TO_RAD;
+
+  //  Calculate yaw using magnetometer & derived roll and pitch
+  float mag_x_compensated = sensorData.mx * cos(eulerAngles.pitchRadians) + sensorData.mz * sin(eulerAngles.pitchRadians);
+  float mag_y_compensated = sensorData.mx * sin(eulerAngles.rollRadians) * sin(eulerAngles.pitchRadians) + sensorData.my * cos(eulerAngles.rollRadians) - sensorData.mz * sin(eulerAngles.rollRadians) * cos(eulerAngles.pitchRadians);
+
+  eulerAngles.yaw = atan2(mag_x_compensated, mag_y_compensated) * RAD_TO_DEG;    //  Yaw compensated for tilt
+  //  float magYawAngle = atan2(sensorData.mx, sensorData.my) * RAD_TO_DEG;      //  Raw yaw from magnetometer, uncompensated for tilt - alternative yaw value
+  eulerAngles.yawRadians = eulerAngles.yaw * DEG_TO_RAD;
+  eulerAngles.heading = eulerAngles.yaw - declination;
+
+  return eulerAngles;           
 }
 
 SensorData LSM9DS1::rawData() {
@@ -648,6 +681,32 @@ void LSM9DS1::setDeclination(float dec) {
 
 void LSM9DS1::setAlpha(float a) {
   alpha = constrain(a, 0.0, 1.0);
+}
+
+void LSM9DS1::setBeta(float b) {
+  beta = b;
+}
+
+void LSM9DS1::setGyroMeasError(float gme) {
+  gyroMeasError = gme;
+  beta = sqrt(3.0f / 4.0f) * gyroMeasError;
+}
+
+void LSM9DS1::setZeta(float z) {
+  zeta = z;
+}
+
+void LSM9DS1::setGyroMeasDrift(float gmd) {
+  gyroMeasDrift = gmd;
+  zeta = sqrt(3.0f / 4.0f) * gyroMeasDrift;
+}
+
+void LSM9DS1::setKp(float p) {
+  Kp = p;
+}
+
+void LSM9DS1::setKi(float i) {
+  Ki = i;
 }
 
 uint8_t LSM9DS1::whoAmIGyro() {

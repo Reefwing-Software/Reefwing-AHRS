@@ -6,7 +6,7 @@
 
  The AHRS will convert the gyroscope rate and accelerometer force data to a roll and pitch angle. The yaw angle is then calculated using the pitch, roll and magnetometer data. 
 
- ## Sensor Fusion
+ ## Sensor Fusion & Free Parameters
 
  Sensor fusion is the process of combining sensory data or data derived from disparate sources such that the resulting information has less uncertainty than would be possible when these sources were used individually. With the gyroscope and accelerometer, we have two angle sensors which should be providing the same data but with different errors. The concept is to combine or fuse the data in such a way as to eliminate the errors and produce an accurate angle that we can use.
 
@@ -16,27 +16,56 @@
  - Madgwick Filter
  - Mahony Filter
 
- We found that we experienced significant gyroscopic drift with the complementary filter. The Madgwick and Mahony filters fixes this issue but take a bit longer to settle on an angle. Mahony is a bit faster than Madgwick, but the best filter and associated free parameter settings will depend on the application.
+ We found that we experienced significant gyroscopic drift with the complementary filter. The Madgwick and Mahony filters fixes this issue but take a bit longer to settle on an angle. Of the two, Mahony is a bit faster than Madgwick, but the best filter and associated free parameter settings will depend on the application.
 
- ## Aircraft Reference Frame
- 
- Any control system needs to use a defined reference frame. Being a drone application, we will use the convention for aircraft. This is based on three body co-ordinates and three attitude angles roll, pitch and yaw.
+ A free parameter is defined as a variable in our sensor fusion algorithm which cannot be determined by the model and must be estimated experimentally or theoretically. The free parameters which need to be set for the three sensor fusion options are:
 
- The Aircraft Reference Frame (ARF) is relative to the drone itself and the origin is at the centre of gravity. Aircraft movement in the positive X, Y and Z directions translate to forward, right and down. In other words the positive X-Axis points towards the front of the drone.
- Rotation around the X, Y and Z-Axes are referred to as roll, pitch and yaw. The direction of positive rotation is defined by the co-ordinate right hand rule.
+ - Alpha (𝛂) for the **Complementary filter**. Alpha is known as the filter co-efficient, smoothing factor or gain. It determines the cutoff frequency for the high pass filter, which we pass the gyro rate through. `𝛂 = 𝜏 / (𝜏 + ∆t)` where `𝜏 = filter time constant` and `∆t = imu sampling rate`. A typical value for `𝛂` is 0.95 to 0.98 but it depends on the sampling rate and application. A lot more detail is provided in our article [How to Write your own Flight Controller Software - Part 7]().
+ - Kp and Ki for the **Mahony filter**. These are the free parameters in the Mahony filter and fusion scheme, Kp for proportional feedback, and Ki is for integral. The Madgwick and Mahony filters differ with regards to the resolution of sensor biases. Mahony uses a proportional and integral controller to correct the gyroscope bias, whereas Madgwick uses only a proportional controller. The Mahony filter takes into consideration the disparity between the orientation from the gyroscope and the estimation from the magnetometer and accelerometer and weighs them according to its gains. The changes made to the gyroscope are given by: `Kp ∗ em + Ki ∗ ei`, where `em` is the sensor error of the gyroscope, and `ei` is the integral error, which is calculated by: `em = 1 / sampling frequency`. The filter default values are: `Kp = 10.0f` and `Ki = 0.0f`.
+ - Beta (𝛃) and zeta (𝛇) for the **Madgwick filter**. The gain `𝛽` represents all mean zero gyroscope measurement errors, expressed as the magnitude of a quaternion derivative. It is defined using the angular velocity. Zeta `𝛇`, the other free parameter in the Madgwick scheme is usually set to a small or zero value. Beta is based on our estimate of gyroscope measurement error (e.g., `GyroMeasError = 40` degrees per second is used as a default). Zeta is calculated using our estimate of gyroscope drift (e.g., `GyroMeasDrift = 0.0` degrees per second per second is the default). We calculate beta and zeta using the code shown below.
 
- Roll is defined as the angle between the Y Axis and the horizontal plane. When rotating the drone around the X Axis with the Y Axis moving downwards, roll is positive and increasing.
+ ```c++
+float beta = sqrt(3.0f / 4.0f) * GyroMeasError;   
+float zeta = sqrt(3.0f / 4.0f) * GyroMeasDrift;
+```
 
- Pitch is defined as the angle between the X Axis and the horizontal plane. When rotating the drone around the Y Axis with the X Axis moving upwards, pitch is positive and increasing.
+For the Madgwick filter there is a tradeoff in the beta parameter between accuracy and response speed. In the original Madgwick study, a beta of 0.041 (corresponding to GyroMeasError of 2.7 degrees/s) was found to give optimal accuracy. However, with this value, the LSM9SD0 response time is about 10 seconds to a stable initial quaternion. Subsequent changes also require a longish lag time to a stable output, not fast enough for a quadcopter!
 
- Yaw is defined as the angle between the X Axis and magnetic north on the
- horizontal plane measured in a clockwise direction when viewing from the top of the drone.
+Increasing beta (`GyroMeasError`) by about a factor of fifteen, the response time is reduced to ~2 seconds. We haven't noticed any reduction in solution accuracy with this reduced lag. This is essentially the I coefficient in a PID control sense; the bigger the feedback coefficient, the faster the solution converges, usually at the expense of accuracy. In any case, beta is the free parameter in the Madgwick filtering and fusion scheme.
 
- The aircraft reference frame is useful in a piloted flight control context, since we want command inputs to be in reference to the current drone position and attitude.
+The default free parameters are set in the LSM9DS1 `begin()` method, so custom values need to be assigned after this and before the `update()` method is called in `loop()`. The available `LSM9DS1` class set free parameter methods are:
 
- ## World Reference Frame
+```c++
+void setAlpha(float a);           // Complementary Filter - value between 0 and 1.
+void setBeta(float b);            // Madgwick Filter
+void setGyroMeasError(float gme); // Madgwick Filter - value in degrees per second
+void setZeta(float z);            // Madgwick Filter
+void setGyroMeasDrift(float gmd); // Madgwick Filter - value in degrees per second per second
+void setKp(float p);              // Mahony Filter - proportional term
+void setKi(float i);              // Mahony Filter - integral term
+```
 
- Another possible reference frame is the world or ground. In this frame, the origin is defined as a location on Earth (e.g., the drone take off longitude, latitude and altitude) and the X, Y and Z-Axes correspond to North, East and Down. You may see this described as NED.
+For the Madgwick Filter use either `setBeta()` or `setGyroMeasError()`, **but not both**, since they both effect beta. Similarly, use either `setZeta()` or `setGyroMeasDrift()`, **but not both**.
+
+## Aircraft Reference Frame
+
+Any control system needs to use a defined reference frame. Being a drone application, we will use the convention for aircraft. This is based on three body co-ordinates and three attitude angles roll, pitch and yaw.
+
+The Aircraft Reference Frame (ARF) is relative to the drone itself and the origin is at the centre of gravity. Aircraft movement in the positive X, Y and Z directions translate to forward, right and down. In other words the positive X-Axis points towards the front of the drone.
+Rotation around the X, Y and Z-Axes are referred to as roll, pitch and yaw. The direction of positive rotation is defined by the co-ordinate right hand rule.
+
+Roll is defined as the angle between the Y Axis and the horizontal plane. When rotating the drone around the X Axis with the Y Axis moving downwards, roll is positive and increasing.
+
+Pitch is defined as the angle between the X Axis and the horizontal plane. When rotating the drone around the Y Axis with the X Axis moving upwards, pitch is positive and increasing.
+
+Yaw is defined as the angle between the X Axis and magnetic north on the
+horizontal plane measured in a clockwise direction when viewing from the top of the drone.
+
+The aircraft reference frame is useful in a piloted flight control context, since we want command inputs to be in reference to the current drone position and attitude.
+
+## World Reference Frame
+
+Another possible reference frame is the world or ground. In this frame, the origin is defined as a location on Earth (e.g., the drone take off longitude, latitude and altitude) and the X, Y and Z-Axes correspond to North, East and Down. You may see this described as NED.
 
 Heading is similar to yaw and defined as the angle between the X Axis and magnetic north on the horizontal plane measured in a clockwise direction when viewing from the top of the drone. Thus, a heading angle of 0° will point towards the North, and +90° towards the East.
 
@@ -204,28 +233,15 @@ Performing the figure of 8 pattern 'traces out' part of our deformed sphere. Fro
 
 ### 3. Roll, Pitch and Yaw Angles on Serial Port
 
-This sketch is an example of a simple AHRS. It prints out the roll, pitch, yaw and heading angles to the Serial port every second. It is a good way to explore the capabilities of the library and for deciding which quaternion update method is best suited to your application. Running on a Nano 33 BLE SENSE, the loop frequency was just over 300 Hz (for either filter).
+This sketch is an example of a simple AHRS. It prints out the roll, pitch, yaw and heading angles to the Serial port every second. It is a good way to explore the capabilities of the library and for deciding which quaternion update method is best suited to your application. Running on a Nano 33 BLE SENSE, the loop frequency was just over 300 Hz for Mahony and Madgwick filters, and just under 300 Hz for the Complementary filter.
 
+### 4. Complementary Filter
 
+Largely the same as the previous sketch (roll, pitch and yaw on the serial port), it demonstrates how and where to set the filter free parameters. In this case, you can adjust `𝛂` and watch the effect on angle stability.
 
+```c++
+imu.setAlpha(0.95);
+```
 
-
-
-For more see http://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles.
-
-With these settings the filter is updating at a ~145 Hz rate using the Madgwick scheme and 
->200 Hz using the Mahony scheme even though the display refreshes at only 2 Hz.
-The filter update rate is determined mostly by the mathematical steps in the respective algorithms, 
-the processor speed (8 MHz for the 3.3V Pro Mini), and the magnetometer ODR:
-an ODR of 10 Hz for the magnetometer produce the above rates, maximum magnetometer ODR of 100 Hz produces
-filter update rates of 36 - 145 and ~38 Hz for the Madgwick and Mahony schemes, respectively. 
-This is presumably because the magnetometer read takes longer than the gyro or accelerometer reads.
-This filter update rate should be fast enough to maintain accurate platform orientation for 
-stabilization control of a fast-moving robot or quadcopter. 
-
-#### Madgwick Sensor Fusion
-
-There is a tradeoff in the beta parameter between accuracy and response speed. In the original Madgwick study, beta of 0.041 (corresponding to GyroMeasError of 2.7 degrees/s) was found to give optimal accuracy. However, with this value, the LSM9SD0 response time is about 10 seconds to a stable initial quaternion. Subsequent changes also require a longish lag time to a stable output, not fast enough for a quadcopter!
-
-By increasing beta (GyroMeasError) by about a factor of fifteen, the response time constant is reduced to ~2 sec. We haven't noticed any reduction in solution accuracy. This is essentially the I coefficient in a PID control sense; the bigger the feedback coefficient, the faster the solution converges, usually at the expense of accuracy. In any case, this is the free parameter in the Madgwick filtering and fusion scheme.
+For the complementary filter, with `𝛂 = 0.0` the angle result will be  100% from the accelerometer and magnetometer. With `𝛂 = 1.0`, the result will be 100% from the gyroscope. A large `α` implies that the output will decay very slowly but will also be strongly influenced by even small changes in input. The output of this filter will decay towards zero for an unchanging input.
 

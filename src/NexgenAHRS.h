@@ -99,14 +99,14 @@ class Quaternion {
 
     EulerAngles toEulerAngles(float declination = 0.0);
 
-    void madgwickUpdate(SensorData data, float beta, float deltaT); 
+    void madgwickUpdate(SensorData data, float beta, float zeta, float deltaT); 
     void mahoneyUpdate(SensorData data, float Kp, float Ki, float deltaT);
     void complementaryUpdate(SensorData data, float alpha, float deltaT);
 
     float q0, q1, q2, q3;      //  Euler Parameters
 
   private:
-    float eInt[3] = {0.0f, 0.0f, 0.0f};       //  Vector to hold integral error for Mahony method
+    float eInt[3] = {0.0f, 0.0f, 0.0f};       //  Vector to hold integral error for Mahony filter
     float att[4] = {1.0f, 0.0f, 0.0f, 0.0f};  //  Attitude quaternion for complementary filter
 };
 
@@ -136,6 +136,12 @@ class LSM9DS1 {
     void calibrateMag();
     void setFusionAlgorithm(SensorFusion algo);
     void setAlpha(float a);
+    void setBeta(float b);
+    void setGyroMeasError(float gme);
+    void setZeta(float z);
+    void setGyroMeasDrift(float gmd);
+    void setKp(float p);
+    void setKi(float i);
     void setDeclination(float dec);
     void loadAccBias(float axB, float ayB, float azB);
     void loadGyroBias(float gxB, float gyB, float gzB);
@@ -159,6 +165,8 @@ class LSM9DS1 {
     void setMagneticBias(float* dest1);
     void copyArray(float* src, float* dst, int len);
 
+    EulerAngles updateEulerAngles();
+
     uint8_t OSR, Godr, Gbw, Aodr, Abw, Modr, Mmode;  
     uint8_t aScale, gScale, mScale;
     uint32_t lastUpdate; 
@@ -167,11 +175,15 @@ class LSM9DS1 {
     float gyroBias[3] = {0, 0, 0}, accelBias[3] = {0, 0, 0},  magBias[3] = {0, 0, 0}; 
     float declination;
     float gyroMeasError, gyroMeasDrift, alpha, beta, zeta, Kp, Ki;   //  Sensor Fusion free parameters
+    float gyrRollAngle, gyrPitchAngle, gyrYawAngle;
 
     SensorData sensorData; // variables to hold latest sensor data values 
     Quaternion quaternion;
-    EulerAngles eulerAngels;
+    EulerAngles eulerAngles;
     SensorFusion fusion;
+
+    static const double RAD_TO_DEG = 57.295779513082320876798154814105;
+    static const double DEG_TO_RAD = 0.017453292519943295769236907684886;
 };
 
 /******************************************************************
