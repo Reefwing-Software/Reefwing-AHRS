@@ -58,8 +58,7 @@ Roll is defined as the angle between the Y Axis and the horizontal plane. When r
 
 Pitch is defined as the angle between the X Axis and the horizontal plane. When rotating the drone around the Y Axis with the X Axis moving upwards, pitch is positive and increasing.
 
-Yaw is defined as the angle between the X Axis and magnetic north on the
-horizontal plane measured in a clockwise direction when viewing from the top of the drone.
+Yaw is defined as the angle between the X Axis and magnetic north on the horizontal plane measured in a clockwise direction when viewing from the top of the drone.
 
 The aircraft reference frame is useful in a piloted flight control context, since we want command inputs to be in reference to the current drone position and attitude.
 
