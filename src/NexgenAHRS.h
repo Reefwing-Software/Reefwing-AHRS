@@ -181,9 +181,6 @@ class LSM9DS1 {
     Quaternion quaternion;
     EulerAngles eulerAngles;
     SensorFusion fusion;
-
-    static const double RAD_TO_DEG = 57.295779513082320876798154814105;
-    static const double DEG_TO_RAD = 0.017453292519943295769236907684886;
 };
 
 /******************************************************************
