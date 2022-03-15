@@ -706,7 +706,9 @@ EulerAngles LSM9DS1::updateEulerAngles() {
 EulerAngles LSM9DS1::fusionEulerAngles(int16_t accRaw[3], int16_t gyroRaw[3], int16_t magRaw[3]) {
   //  The Fusion AHRS expects raw IMU values
   // Calibrate gyroscope
-  FusionVector3 uncalibratedGyroscope = {.axis.x = gyroRaw[0], .axis.y = gyroRaw[1], .axis.z = gyroRaw[2] };
+  FusionVector3 uncalibratedGyroscope;
+
+  uncalibratedGyroscope.axis = { gyroRaw[0], gyroRaw[1], gyroRaw[2] };
 
   FusionVector3 calibratedGyroscope = FusionCalibrationInertial(uncalibratedGyroscope, FUSION_ROTATION_MATRIX_IDENTITY, gyroscopeSensitivity, FUSION_VECTOR3_ZERO);
 
@@ -735,9 +737,9 @@ EulerAngles LSM9DS1::fusionEulerAngles(int16_t accRaw[3], int16_t gyroRaw[3], in
   // Convert to Euler angles
   FusionEulerAngles fusionEulerAngles = FusionQuaternionToEulerAngles(FusionAhrsGetQuaternion(&fusionAhrs));
 
-  eulerAngles.roll = eulerAngles.angle.roll;
-  eulerAngles.pitch = eulerAngles.angle.pitch;
-  eulerAngles.yaw = eulerAngles.angle.yaw;
+  eulerAngles.roll = fusionEulerAngles.angle.roll;
+  eulerAngles.pitch = fusionEulerAngles.angle.pitch;
+  eulerAngles.yaw = fusionEulerAngles.angle.yaw;
   
 }
 

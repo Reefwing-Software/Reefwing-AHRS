@@ -108,7 +108,7 @@ class Quaternion {
     EulerAngles toEulerAngles(float declination = 0.0);
 
     void reset();
-    void madgwickUpdate(SensorData data, float beta, float zeta, float deltaT); 
+    void madgwickUpdate(SensorData data, float beta, float deltaT); 
     void mahoneyUpdate(SensorData data, float Kp, float Ki, float deltaT);
     void complementaryUpdate(SensorData data, float alpha, float deltaT);
 
