@@ -738,7 +738,8 @@ EulerAngles LSM9DS1::fusionEulerAngles(int16_t accRaw[3], int16_t gyroRaw[3], in
   eulerAngles.roll = fusionEulerAngles.angle.roll;
   eulerAngles.pitch = fusionEulerAngles.angle.pitch;
   eulerAngles.yaw = fusionEulerAngles.angle.yaw;
-  
+
+  return eulerAngles;
 }
 
 SensorData LSM9DS1::rawData() {
