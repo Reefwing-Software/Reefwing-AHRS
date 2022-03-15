@@ -337,7 +337,7 @@ void Quaternion::complementaryUpdate(SensorData data, float alpha, float deltaT)
   q3 = alpha * att[3] + (1 - alpha) * qam[3];
 }
 
-void Quaternion::madgwickUpdate(SensorData data, float beta, float zeta, float deltaT) {
+void Quaternion::madgwickUpdate(SensorData data, float beta, float deltaT) {
   float norm;
   float hx, hy, _2bx, _2bz;
   float s0, s1, s2, s3;
@@ -713,19 +713,17 @@ EulerAngles LSM9DS1::fusionEulerAngles(int16_t accRaw[3], int16_t gyroRaw[3], in
   FusionVector3 calibratedGyroscope = FusionCalibrationInertial(uncalibratedGyroscope, FUSION_ROTATION_MATRIX_IDENTITY, gyroscopeSensitivity, FUSION_VECTOR3_ZERO);
 
   // Calibrate accelerometer
-  FusionVector3 uncalibratedAccelerometer = {
-      .axis.x = accRaw[0], 
-      .axis.y = accRaw[1], 
-      .axis.z = accRaw[2], 
-  };
+  FusionVector3 uncalibratedAccelerometer;
+
+  uncalibratedAccelerometer.axis = { accRaw[0], accRaw[1], accRaw[2] };
+  
   FusionVector3 calibratedAccelerometer = FusionCalibrationInertial(uncalibratedAccelerometer, FUSION_ROTATION_MATRIX_IDENTITY, accelerometerSensitivity, FUSION_VECTOR3_ZERO);
 
   // Calibrate magnetometer
-  FusionVector3 uncalibratedMagnetometer = {
-      .axis.x = magRaw[0], 
-      .axis.y = magRaw[1], 
-      .axis.z = magRaw[2], 
-  };
+  FusionVector3 uncalibratedMagnetometer;
+  
+  uncalibratedMagnetometer.axis = { magRaw[0], magRaw[1], magRaw[2] };
+
   FusionVector3 calibratedMagnetometer = FusionCalibrationMagnetic(uncalibratedMagnetometer, FUSION_ROTATION_MATRIX_IDENTITY, hardIronBias);
 
   // Update gyroscope bias correction algorithm
@@ -868,11 +866,7 @@ void LSM9DS1::setAccResolution(Ascale ascale) {
       break;
   }
 
-  accelerometerSensitivity = {
-    .axis.x = aRes,
-    .axis.y = aRes,
-    .axis.z = aRes,
-  };
+  accelerometerSensitivity.axis = { aRes, aRes, aRes };
 }
 
 void LSM9DS1::setGyroResolution(Gscale gscale) {
@@ -891,11 +885,7 @@ void LSM9DS1::setGyroResolution(Gscale gscale) {
       break;
   }
 
-  gyroscopeSensitivity = {
-    .axis.x = gRes,
-    .axis.y = gRes,
-    .axis.z = gRes,
-  };
+  gyroscopeSensitivity.axis = { gRes, gRes, gRes };
 }
 
 void LSM9DS1::setMagResolution(Mscale mscale) {
@@ -917,11 +907,7 @@ void LSM9DS1::setMagResolution(Mscale mscale) {
       break;
   }
 
-  hardIronBias = {
-    .axis.x = 0.0f,
-    .axis.y = 0.0f,
-    .axis.z = 0.0f,
-  }; // replace these values with actual hard-iron bias in uT if known
+  hardIronBias.axis = { 0.0f, 0.0f, 0.0f }; // replace these values with actual hard-iron bias in uT if known
 }
 
 float LSM9DS1::getAccResolution() {
