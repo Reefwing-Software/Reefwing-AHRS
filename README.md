@@ -15,6 +15,7 @@
  - Complementary Filter
  - Madgwick Filter
  - Mahony Filter
+ - NONE: Euler Angles are updated using trigonometry
 
  We found that we experienced significant gyroscopic drift with the complementary filter. The Madgwick and Mahony filters fixes this issue but take a bit longer to settle on an angle. Of the two, Mahony is a bit faster than Madgwick, but the best filter and associated free parameter settings will depend on the application.
 
@@ -22,11 +23,10 @@
 
  - Alpha (𝛂) for the **Complementary filter**. Alpha is known as the filter co-efficient, smoothing factor or gain. It determines the cutoff frequency for the high pass filter, which we pass the gyro rate through. `𝛂 = 𝜏 / (𝜏 + ∆t)` where `𝜏 = filter time constant` and `∆t = imu sampling rate`. A typical value for `𝛂` is 0.95 to 0.98 but it depends on the sampling rate and application. A lot more detail is provided in our article [How to Write your own Flight Controller Software - Part 7]().
  - Kp and Ki for the **Mahony filter**. These are the free parameters in the Mahony filter and fusion scheme, Kp for proportional feedback, and Ki is for integral. The Madgwick and Mahony filters differ with regards to the resolution of sensor biases. Mahony uses a proportional and integral controller to correct the gyroscope bias, whereas Madgwick uses only a proportional controller. The Mahony filter takes into consideration the disparity between the orientation from the gyroscope and the estimation from the magnetometer and accelerometer and weighs them according to its gains. The changes made to the gyroscope are given by: `Kp ∗ em + Ki ∗ ei`, where `em` is the sensor error of the gyroscope, and `ei` is the integral error, which is calculated by: `em = 1 / sampling frequency`. The filter default values are: `Kp = 10.0f` and `Ki = 0.0f`.
- - Beta (𝛃) and zeta (𝛇) for the **Madgwick filter**. The gain `𝛽` represents all mean zero gyroscope measurement errors, expressed as the magnitude of a quaternion derivative. It is defined using the angular velocity. Zeta `𝛇`, the other free parameter in the Madgwick scheme is usually set to a small or zero value. Beta is based on our estimate of gyroscope measurement error (e.g., `GyroMeasError = 40` degrees per second is used as a default). Zeta is calculated using our estimate of gyroscope drift (e.g., `GyroMeasDrift = 0.0` degrees per second per second is the default). We calculate beta and zeta using the code shown below.
+ - Beta (𝛃) for the **Madgwick filter**. The gain `𝛽` represents all mean zero gyroscope measurement errors, expressed as the magnitude of a quaternion derivative. It is defined using the angular velocity. Beta is based on our estimate of gyroscope measurement error (e.g., `GyroMeasError = 40` degrees per second is used as a default). We calculate beta using the code shown below.
 
  ```c++
 float beta = sqrt(3.0f / 4.0f) * GyroMeasError;   
-float zeta = sqrt(3.0f / 4.0f) * GyroMeasDrift;
 ```
 
 For the Madgwick filter there is a tradeoff in the beta parameter between accuracy and response speed. In the original Madgwick study, a beta of 0.041 (corresponding to GyroMeasError of 2.7 degrees/s) was found to give optimal accuracy. However, with this value, the LSM9SD0 response time is about 10 seconds to a stable initial quaternion. Subsequent changes also require a longish lag time to a stable output, not fast enough for a quadcopter!
@@ -39,13 +39,11 @@ The default free parameters are set in the LSM9DS1 `begin()` method, so custom v
 void setAlpha(float a);           // Complementary Filter - value between 0 and 1.
 void setBeta(float b);            // Madgwick Filter
 void setGyroMeasError(float gme); // Madgwick Filter - value in degrees per second
-void setZeta(float z);            // Madgwick Filter
-void setGyroMeasDrift(float gmd); // Madgwick Filter - value in degrees per second per second
 void setKp(float p);              // Mahony Filter - proportional term
 void setKi(float i);              // Mahony Filter - integral term
 ```
 
-For the Madgwick Filter use either `setBeta()` or `setGyroMeasError()`, **but not both**, since they both effect beta. Similarly, use either `setZeta()` or `setGyroMeasDrift()`, **but not both**.
+For the Madgwick Filter use either `setBeta()` or `setGyroMeasError()`, **but not both**, since they both effect beta. 
 
 ## Aircraft Reference Frame
 
@@ -88,7 +86,7 @@ A magnetometer is an instrument used for measuring magnetic forces, and in our c
 
 The Nexgen AHRS Library includes the following classes:
 
-  - Quaternion: converts Euler Angles to a Quaternion and includes open source madgwick and mahoney sensor fusion quaternion update methods.
+  - Quaternion: converts Euler Angles to a Quaternion and includes open source complementary, madgwick and mahoney sensor fusion quaternion update methods.
   - LSM9DS1: for testing, calibrating and reading the IMU data from the sensor.
   - LPS22HB: to read the barometer pressure data if available (fitted to the Nano 33 BLE SENSE version only).
 
@@ -114,7 +112,7 @@ void loop() {
 }
 ```
 
-Normally you would run the test and calibrate sketch first to obtain the gyro, acc and mag biases for your board, see the `serialRollPitchYaw.ino` example sketch for how these are applied.
+It is strongly recommended that you run the test and calibrate sketch first to obtain the gyro, acc and mag biases for your board, see the `serialRollPitchYaw.ino` example sketch for how these are applied.
 
 The EulerAngles data structure returned by the `imu.update()` method is defined as:
 
@@ -244,3 +242,26 @@ imu.setAlpha(0.95);
 
 For the complementary filter, with `𝛂 = 0.0` the angle result will be  100% from the accelerometer and magnetometer. With `𝛂 = 1.0`, the result will be 100% from the gyroscope. A large `α` implies that the output will decay very slowly but will also be strongly influenced by even small changes in input. The output of this filter will decay towards zero for an unchanging input.
 
+### 5. Beta Optimisation for the Madgwick Filter
+The filter gain β represents all mean zero gyroscope measurement errors, expressed as the magnitude of a quaternion derivative. This error represents the gyroscope bias.
+
+What this means is that beta is a parameter that you can tweak to optimise the filter results for your Arduino. In Madgwick's paper, he tests different values of 𝛃 (0 to 0.5) and graphs the results. A copy of this paper may be found in the theory folder of the Nexgen AHRS library. The y-axis on Madgwick's graph, [Effect of β on filter performance](https://www.samba.org/tridge/UAV/madgwick_internal_report.pdf), represents the RMS error in degrees.
+
+`There is a clear optimal value of β for each filter implementation; high enough to minimises errors due to integral drift but sufficiently low enough that unnecessary noise is not introduced by large steps of gradient descent iterations.`
+
+RMS is often used to compare a theoretical prediction against an actual result. The root mean square (RMS) error is defined as the arithmetic mean of the squares of a set of numbers. If we take n angle measurements {𝜽1, 𝜽2, …, 𝜽n}, the RMS is:
+
+`𝜽rms = √[(𝜽1² + 𝜽2² + … + 𝜽n²)/n]`
+
+This sketch assists with beta optimisation of your Madgwick filter. It will print to the serial port the value for beta between 0.0 and 0.5 and its associated static RMS error in CSV format. You can graph these results. The sketch will record the beta with the minimum error in a static situation for pitch and roll. This sketch also demonstrates how you can adjust the filter gain in the Nexgen AHRS library. The optimum beta and minimum error is printed out at the end of the sketch.
+
+```
+Optimum Beta = 0.17, with an RMS error of 0.00 degrees. 
+Default Beta = 0.60
+```
+
+You need to run the test a few times to get a feel for where the true optimum is. On our test board, the optimum was around 0.2.
+
+However, for the Madgwick filter there is a tradeoff in the beta parameter between accuracy and response speed. In the original Madgwick study, a beta of 0.041 (corresponding to GyroMeasError of 2.7 degrees/s) was found to give optimal accuracy. With this value, the LSM9SD1 response time is about 10 seconds to a stable initial quaternion. Subsequent changes also require a longish lag time to a stable output, not fast enough for a quadcopter!
+
+Increasing beta (GyroMeasError) by about a factor of fifteen (beta = 0.6), the response time is reduced to ~2 seconds. We haven't noticed any reduction in solution accuracy with this reduced lag. This is essentially the I coefficient in a PID control sense; the bigger the feedback coefficient, the faster the solution converges, usually at the expense of accuracy.

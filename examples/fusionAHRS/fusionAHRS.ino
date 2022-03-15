@@ -1,6 +1,6 @@
 /******************************************************************
-  @file       complementaryFilter.ino
-  @brief      Test complementary filter on the Nano 33 BLE
+  @file       fusionAHRS.ino
+  @brief      Demonstrates the updated Madgwick Filter called Fusion
   @author     David Such
   @copyright  Please see the accompanying LICENSE file.
 
@@ -22,13 +22,15 @@ const long displayPeriod = 1000;
 unsigned long previousMillis = 0;
 
 void setup() {
-  // Initialise the LSM9DS1 IMU and LPS22HB Barometer
+  // Initialise the LSM9DS1 IMU
   imu.begin();
 
   //  Positive magnetic declination - Sydney, AUSTRALIA
   imu.setDeclination(12.717);
-  imu.setFusionAlgorithm(SensorFusion::COMPLEMENTARY);
-  imu.setAlpha(0.95);
+  imu.setFusionAlgorithm(SensorFusion::FUSION);
+  imu.setFusionPeriod(0.01f);   // Estimated sample period = 0.01 s = 100 Hz
+  imu.setFusionThreshold(0.5f); // Stationary threshold = 0.5 degrees per second
+  imu.setFusionGain(0.5);       // Fusion Filter Gain
 
   //  Start Serial and wait for connection
   Serial.begin(115200);
@@ -44,11 +46,12 @@ void setup() {
     imu.loadGyroBias(0.800018, 0.269165, -0.097198);
     imu.loadMagBias(-0.192261, -0.012085, 0.118652);
 
-    //  Start processing IMU data.
+    //  This sketch assumes that the LSM9DS1 is already calibrated, 
+    //  If so, start processing IMU data. If not, run the testAndCalibrate 
+    //  sketch first.
     imu.start();
-  }
-  else {
-    Serial.println("LSM9DS1 Accelerometer, Magnetometer and Gyroscope not found.");
+  } else {
+    Serial.println("LSM9DS1 IMU Not Detected.");
     while(1);
   }
 }
@@ -56,9 +59,13 @@ void setup() {
 void loop() {
   //  Check for new IMU data and update angles
   angles = imu.update();
+  
+  //  Wait for new sample
+  delay(10);  
 
   //  Display sensor data every displayPeriod, non-blocking.
   if (millis() - previousMillis >= displayPeriod) {
+    
     Serial.print("Roll: ");
     Serial.print(angles.roll);
     Serial.print("\tPitch: ");

@@ -16,6 +16,11 @@
          - LSM9DS1 Class borrows heavily from the 
            Kris Winer sketch LSM9DS1_BasicAHRS_Nano33.ino
            ref: https://github.com/kriswiner/LSM9DS1
+         - The C++ code for our quaternion position update 
+           using the Madgwick Filter is based on the paper, 
+           "An efficient orientation filter for inertial and 
+           inertial/magnetic sensor arrays" written by Sebastian 
+           O.H. Madgwick in April 30, 2010.
 
 ******************************************************************/
 
@@ -23,6 +28,8 @@
 #define NexgenAHRS_h
 
 #include <Arduino.h>
+
+#include "Fusion.h"
 
 /******************************************************************
  *
@@ -55,6 +62,7 @@ enum class SensorFusion { // Sensor fusion algorithm options
   MADGWICK = 0,
   MAHONY,
   COMPLEMENTARY,
+  FUSION,
   NONE
 };
 
@@ -99,6 +107,7 @@ class Quaternion {
 
     EulerAngles toEulerAngles(float declination = 0.0);
 
+    void reset();
     void madgwickUpdate(SensorData data, float beta, float zeta, float deltaT); 
     void mahoneyUpdate(SensorData data, float Kp, float Ki, float deltaT);
     void complementaryUpdate(SensorData data, float alpha, float deltaT);
@@ -123,8 +132,10 @@ class LSM9DS1 {
     void begin();
     void start();
     bool connected();
-    uint8_t whoAmIGyro();
-    uint8_t whoAmIMag();
+    bool accelAvailable();
+    bool gyroAvailable();
+    bool magAvailable();
+    void resetQuaternion();
     float readGyroTemp();
     void setAccResolution(Ascale ascale);
     void setGyroResolution(Gscale gscale);
@@ -134,14 +145,15 @@ class LSM9DS1 {
     float getMagResolution();
     void calibrateAccGyro();
     void calibrateMag();
+    void setFusionPeriod(float p);
+    void setFusionThreshold(float t);
     void setFusionAlgorithm(SensorFusion algo);
     void setAlpha(float a);
     void setBeta(float b);
     void setGyroMeasError(float gme);
-    void setZeta(float z);
-    void setGyroMeasDrift(float gmd);
     void setKp(float p);
     void setKi(float i);
+    void setFusionGain(float g);
     void setDeclination(float dec);
     void loadAccBias(float axB, float ayB, float azB);
     void loadGyroBias(float gxB, float gyB, float gzB);
@@ -155,6 +167,8 @@ class LSM9DS1 {
     SensorData rawData();
 
   private:
+    uint8_t whoAmIGyro();
+    uint8_t whoAmIMag();
     void readAccelData(int16_t* destination);
     void readGyroData(int16_t* destination);
     void readMagData(int16_t* destination);
@@ -165,7 +179,11 @@ class LSM9DS1 {
     void setMagneticBias(float* dest1);
     void copyArray(float* src, float* dst, int len);
 
+    FusionBias fusionBias;
+    FusionAhrs fusionAhrs;
+
     EulerAngles updateEulerAngles();
+    EulerAngles fusionEulerAngles(int16_t accRaw[3], int16_t gyroRaw[3], int16_t magRaw[3]);
 
     uint8_t OSR, Godr, Gbw, Aodr, Abw, Modr, Mmode;  
     uint8_t aScale, gScale, mScale;
@@ -174,8 +192,13 @@ class LSM9DS1 {
     float deltaT;
     float gyroBias[3] = {0, 0, 0}, accelBias[3] = {0, 0, 0},  magBias[3] = {0, 0, 0}; 
     float declination;
-    float gyroMeasError, gyroMeasDrift, alpha, beta, zeta, Kp, Ki;   //  Sensor Fusion free parameters
+    float gyroMeasError, alpha, beta, Kp, Ki, gain;   //  Sensor Fusion free parameters
     float gyrRollAngle, gyrPitchAngle, gyrYawAngle;
+    float fusionThreshold, fusionPeriod;
+
+    FusionVector3 gyroscopeSensitivity;
+    FusionVector3 accelerometerSensitivity;
+    FusionVector3 hardIronBias;
 
     SensorData sensorData; // variables to hold latest sensor data values 
     Quaternion quaternion;

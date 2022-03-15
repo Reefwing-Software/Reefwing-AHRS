@@ -16,6 +16,11 @@
          - LSM9DS1 Class borrows heavily from the 
            Kris Winer sketch LSM9DS1_BasicAHRS_Nano33.ino
            ref: https://github.com/kriswiner/LSM9DS1
+         - The C++ code for our quaternion position update 
+           using the Madgwick Filter is based on the paper, 
+           "An efficient orientation filter for inertial and 
+           inertial/magnetic sensor arrays" written by Sebastian 
+           O.H. Madgwick in April 30, 2010.
 
 ******************************************************************/
 
@@ -224,8 +229,7 @@ enum Modr {  // set of allowable mag sample rates
  ******************************************************************/
 
 Quaternion::Quaternion() {
-  q0 = 1.0;
-  q1 = q2 = q3 = 0.0;
+  reset();
 }
 
 Quaternion::Quaternion(float w, float x, float y, float z) {
@@ -251,6 +255,11 @@ Quaternion::Quaternion(float yaw, float pitch, float roll) {
   q1 = sr * cp * cy - cr * sp * sy;
   q2 = cr * sp * cy + sr * cp * sy;
   q3 = cr * cp * sy - sr * sp * cy;
+}
+
+void Quaternion::reset() {
+  q0 = 1.0;
+  q1 = q2 = q3 = 0.0;
 }
 
 EulerAngles Quaternion::toEulerAngles(float declination) {
@@ -522,22 +531,23 @@ void LSM9DS1::begin() {
   writeByte(LSM9DS1M_ADDRESS, LSM9DS1M_CTRL_REG2_M, 0x0c);
 
   //  Default configuration
-  OSR = ADC_4096;      // set pressure amd temperature oversample rate
-  Godr = GODR_238Hz;   // gyro data sample rate
-  Gbw = GBW_med;       // gyro data bandwidth
-  Aodr = AODR_238Hz;   // accel data sample rate
-  Abw = ABW_50Hz;      // accel data bandwidth
-  Modr = MODR_10Hz;    // mag data sample rate
+  OSR = ADC_4096;                 // set pressure amd temperature oversample rate
+  Godr = GODR_238Hz;              // gyro data sample rate
+  Gbw = GBW_med;                  // gyro data bandwidth
+  Aodr = AODR_238Hz;              // accel data sample rate
+  Abw = ABW_50Hz;                 // accel data bandwidth
+  Modr = MODR_10Hz;               // mag data sample rate
   Mmode = MMode_HighPerformance;  // magnetometer operation mode
+  fusionThreshold = 0.5;          // fusion filter stationary threshold (DPS)
+  fusionPeriod = 0.01f;           // fusion filter estimated sample period (s)
 
   //  Sensor Fusion Co-Efficients - see README.md
   gyroMeasError = M_PI * (40.0f / 180.0f);   // gyroscope measurement error in rads/s (start at 40 deg/s)
-  gyroMeasDrift = M_PI * (0.0f  / 180.0f);   // gyroscope measurement drift in rad/s/s (start at 0.0 deg/s/s)
   alpha = 0.98; // default complementary filter coefficient
   beta = sqrt(3.0f / 4.0f) * gyroMeasError;   // compute beta
-  zeta = sqrt(3.0f / 4.0f) * gyroMeasDrift;   // compute zeta, the other free parameter in the Madgwick scheme usually set to a small or zero value
   Kp = 2.0f * 5.0f; // These are the free parameters in the Mahony filter and fusion scheme, Kp for proportional feedback, Ki for integral
   Ki = 0.0f;
+  gain = 0.5f; // Fusion filter default gain
 
   //  Initialise variables used for SensorFusion option - NONE
   gyrRollAngle  = 0.0;
@@ -577,12 +587,39 @@ void LSM9DS1::start() {
   writeByte(LSM9DS1M_ADDRESS, LSM9DS1M_CTRL_REG3_M, 0x00 ); // continuous conversion mode
   writeByte(LSM9DS1M_ADDRESS, LSM9DS1M_CTRL_REG4_M, Mmode << 2 ); // select z-axis mode
   writeByte(LSM9DS1M_ADDRESS, LSM9DS1M_CTRL_REG5_M, 0x40 ); // select block update mode
+
+  // Initialise gyroscope bias correction algorithm
+  FusionBiasInitialise(&fusionBias, fusionThreshold, fusionPeriod); // default stationary threshold = 0.5 degrees per second
+
+  // Initialise AHRS algorithm
+  FusionAhrsInitialise(&fusionAhrs, gain); // default gain = 0.5
+
+  // Set optional magnetic field limits
+  FusionAhrsSetMagneticField(&fusionAhrs, 20.0f, 70.0f); // valid magnetic field range = 20 uT to 70 uT
+}
+
+bool accelAvailable() {
+  if (readByte(LSM9DS1XG_ADDRESS, LSM9DS1XG_STATUS_REG) & 0x01) return true;
+
+  return false;
+}
+
+bool gyroAvailable() {
+  if (readByte(LSM9DS1XG_ADDRESS, LSM9DS1XG_STATUS_REG) & 0x02) return true;
+
+  return false;
+}
+
+bool magAvailable() {
+  if (readByte(LSM9DS1M_ADDRESS, LSM9DS1M_STATUS_REG_M) & 0x08) return true;
+
+  return false;
 }
 
 EulerAngles LSM9DS1::update() {
   int16_t accelCount[3], gyroCount[3], magCount[3];  // Stores the raw 16-bit signed accelerometer, gyro, and mag sensor output
 
-  if (readByte(LSM9DS1XG_ADDRESS, LSM9DS1XG_STATUS_REG) & 0x01) {  // check if new accel data is ready  
+  if (accelAvailable()) {  // check if new accel data is ready  
     readAccelData(accelCount);  // Read the x/y/z adc values
 
     // Now we'll calculate the accleration value into actual g's
@@ -591,7 +628,7 @@ EulerAngles LSM9DS1::update() {
     sensorData.az = (float)accelCount[2] * aRes - accelBias[2]; 
   } 
 
-  if (readByte(LSM9DS1XG_ADDRESS, LSM9DS1XG_STATUS_REG) & 0x02) {  // check if new gyro data is ready  
+  if (gyroAvailable()) {  // check if new gyro data is ready  
     readGyroData(gyroCount);  // Read the x/y/z adc values
 
     // Calculate the gyro value into actual degrees per second
@@ -600,7 +637,7 @@ EulerAngles LSM9DS1::update() {
     sensorData.gz = (float)gyroCount[2] * gRes - gyroBias[2];   
   }
 
-  if (readByte(LSM9DS1M_ADDRESS, LSM9DS1M_STATUS_REG_M) & 0x08) {  // check if new mag data is ready  
+  if (magAvailable()) {  // check if new mag data is ready  
     readMagData(magCount);  // Read the x/y/z adc values
 
     // Calculate the magnetometer values in milliGauss
@@ -615,7 +652,7 @@ EulerAngles LSM9DS1::update() {
   deltaT = ((now - lastUpdate)/1000000.0f); // set integration time by time elapsed since last filter update
   lastUpdate = now;
 
-  //  Sensor Fusion - updates quaternion 
+  //  Sensor Fusion - updates quaternion & Euler Angles
   switch (fusion) {
     case SensorFusion::MADGWICK:
       quaternion.madgwickUpdate(filterFormat(), beta, zeta, deltaT);
@@ -625,6 +662,9 @@ EulerAngles LSM9DS1::update() {
       break;
     case SensorFusion::COMPLEMENTARY:
       quaternion.complementaryUpdate(filterFormat(), alpha, deltaT);
+      break;
+    case SensorFusion::FUSION:
+      return fusionEulerAngles(accelCount, gyroCount, magCount);
       break;
     case SensorFusion::NONE:
       return updateEulerAngles();
@@ -663,6 +703,48 @@ EulerAngles LSM9DS1::updateEulerAngles() {
   return eulerAngles;           
 }
 
+EulerAngles LSM9DS1::fusionEulerAngles(int16_t accRaw[3], int16_t gyroRaw[3], int16_t magRaw[3]) {
+  //  The Fusion AHRS expects raw IMU values
+  // Calibrate gyroscope
+  FusionVector3 uncalibratedGyroscope = {
+      .axis.x = gyroRaw[0], 
+      .axis.y = gyroRaw[1], 
+      .axis.z = gyroRaw[2], 
+  };
+
+  FusionVector3 calibratedGyroscope = FusionCalibrationInertial(uncalibratedGyroscope, FUSION_ROTATION_MATRIX_IDENTITY, gyroscopeSensitivity, FUSION_VECTOR3_ZERO);
+
+  // Calibrate accelerometer
+  FusionVector3 uncalibratedAccelerometer = {
+      .axis.x = accRaw[0], 
+      .axis.y = accRaw[1], 
+      .axis.z = accRaw[2], 
+  };
+  FusionVector3 calibratedAccelerometer = FusionCalibrationInertial(uncalibratedAccelerometer, FUSION_ROTATION_MATRIX_IDENTITY, accelerometerSensitivity, FUSION_VECTOR3_ZERO);
+
+  // Calibrate magnetometer
+  FusionVector3 uncalibratedMagnetometer = {
+      .axis.x = magRaw[0], 
+      .axis.y = magRaw[1], 
+      .axis.z = magRaw[2], 
+  };
+  FusionVector3 calibratedMagnetometer = FusionCalibrationMagnetic(uncalibratedMagnetometer, FUSION_ROTATION_MATRIX_IDENTITY, hardIronBias);
+
+  // Update gyroscope bias correction algorithm
+  calibratedGyroscope = FusionBiasUpdate(&fusionBias, calibratedGyroscope);
+
+  // Update AHRS algorithm
+  FusionAhrsUpdate(&fusionAhrs, calibratedGyroscope, calibratedAccelerometer, calibratedMagnetometer, deltaT);
+
+  // Convert to Euler angles
+  FusionEulerAngles fusionEulerAngles = FusionQuaternionToEulerAngles(FusionAhrsGetQuaternion(&fusionAhrs));
+  
+  eulerAngles.roll = eulerAngles.angle.roll;
+  eulerAngles.pitch = eulerAngles.angle.pitch;
+  eulerAngles.yaw = eulerAngles.angle.yaw;
+  
+}
+
 SensorData LSM9DS1::rawData() {
   return sensorData;
 }
@@ -673,6 +755,14 @@ Quaternion LSM9DS1::getQuaternion() {
 
 void LSM9DS1::setFusionAlgorithm(SensorFusion algo) {
   fusion = algo;
+}
+
+void LSM9DS1::setFusionPeriod(float p) {
+  fusionPeriod = p;
+}
+
+void LSM9DS1::setFusionThreshold(float t) {
+  fusionThreshold = t;
 }
 
 void LSM9DS1::setDeclination(float dec) {
@@ -692,21 +782,16 @@ void LSM9DS1::setGyroMeasError(float gme) {
   beta = sqrt(3.0f / 4.0f) * gyroMeasError;
 }
 
-void LSM9DS1::setZeta(float z) {
-  zeta = z;
-}
-
-void LSM9DS1::setGyroMeasDrift(float gmd) {
-  gyroMeasDrift = gmd;
-  zeta = sqrt(3.0f / 4.0f) * gyroMeasDrift;
-}
-
 void LSM9DS1::setKp(float p) {
   Kp = p;
 }
 
 void LSM9DS1::setKi(float i) {
   Ki = i;
+}
+
+void LSM9DS1::setFusionGain(float g) {
+  gain = g;
 }
 
 uint8_t LSM9DS1::whoAmIGyro() {
@@ -722,6 +807,10 @@ uint8_t LSM9DS1::whoAmIMag() {
 bool LSM9DS1::connected() {
   return (whoAmIGyro() == LSM9DS1XG_WHO_AM_I_VALUE &&
           whoAmIMag() == LSM9DS1M_WHO_AM_I_VALUE);
+}
+
+void LSM9DS1::resetQuaternion() {
+  quaternion.reset();
 }
 
 float LSM9DS1::readGyroTemp() {
@@ -780,6 +869,12 @@ void LSM9DS1::setAccResolution(Ascale ascale) {
       aRes = 8.0/32768.0;
       break;
   }
+
+  accelerometerSensitivity = {
+    .axis.x = aRes,
+    .axis.y = aRes,
+    .axis.z = aRes,
+  };
 }
 
 void LSM9DS1::setGyroResolution(Gscale gscale) {
@@ -797,6 +892,12 @@ void LSM9DS1::setGyroResolution(Gscale gscale) {
       gRes = 2000.0/32768.0;
       break;
   }
+
+  gyroscopeSensitivity = {
+    .axis.x = gRes,
+    .axis.y = gRes,
+    .axis.z = gRes,
+  };
 }
 
 void LSM9DS1::setMagResolution(Mscale mscale) {
@@ -817,6 +918,12 @@ void LSM9DS1::setMagResolution(Mscale mscale) {
       mRes = 16.0/32768.0;
       break;
   }
+
+  hardIronBias = {
+    .axis.x = 0.0f,
+    .axis.y = 0.0f,
+    .axis.z = 0.0f,
+  }; // replace these values with actual hard-iron bias in uT if known
 }
 
 float LSM9DS1::getAccResolution() {
