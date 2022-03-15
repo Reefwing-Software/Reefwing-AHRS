@@ -598,19 +598,19 @@ void LSM9DS1::start() {
   FusionAhrsSetMagneticField(&fusionAhrs, 20.0f, 70.0f); // valid magnetic field range = 20 uT to 70 uT
 }
 
-bool accelAvailable() {
+bool LSM9DS1::accelAvailable() {
   if (readByte(LSM9DS1XG_ADDRESS, LSM9DS1XG_STATUS_REG) & 0x01) return true;
 
   return false;
 }
 
-bool gyroAvailable() {
+bool LSM9DS1::gyroAvailable() {
   if (readByte(LSM9DS1XG_ADDRESS, LSM9DS1XG_STATUS_REG) & 0x02) return true;
 
   return false;
 }
 
-bool magAvailable() {
+bool LSM9DS1::magAvailable() {
   if (readByte(LSM9DS1M_ADDRESS, LSM9DS1M_STATUS_REG_M) & 0x08) return true;
 
   return false;
@@ -655,7 +655,7 @@ EulerAngles LSM9DS1::update() {
   //  Sensor Fusion - updates quaternion & Euler Angles
   switch (fusion) {
     case SensorFusion::MADGWICK:
-      quaternion.madgwickUpdate(filterFormat(), beta, zeta, deltaT);
+      quaternion.madgwickUpdate(filterFormat(), beta, deltaT);
       break;
     case SensorFusion::MAHONY:
       quaternion.mahoneyUpdate(filterFormat(), Kp, Ki, deltaT);
@@ -706,11 +706,7 @@ EulerAngles LSM9DS1::updateEulerAngles() {
 EulerAngles LSM9DS1::fusionEulerAngles(int16_t accRaw[3], int16_t gyroRaw[3], int16_t magRaw[3]) {
   //  The Fusion AHRS expects raw IMU values
   // Calibrate gyroscope
-  FusionVector3 uncalibratedGyroscope = {
-      .axis.x = gyroRaw[0], 
-      .axis.y = gyroRaw[1], 
-      .axis.z = gyroRaw[2], 
-  };
+  FusionVector3 uncalibratedGyroscope = {.axis.x = gyroRaw[0], .axis.y = gyroRaw[1], .axis.z = gyroRaw[2] };
 
   FusionVector3 calibratedGyroscope = FusionCalibrationInertial(uncalibratedGyroscope, FUSION_ROTATION_MATRIX_IDENTITY, gyroscopeSensitivity, FUSION_VECTOR3_ZERO);
 
@@ -738,7 +734,7 @@ EulerAngles LSM9DS1::fusionEulerAngles(int16_t accRaw[3], int16_t gyroRaw[3], in
 
   // Convert to Euler angles
   FusionEulerAngles fusionEulerAngles = FusionQuaternionToEulerAngles(FusionAhrsGetQuaternion(&fusionAhrs));
-  
+
   eulerAngles.roll = eulerAngles.angle.roll;
   eulerAngles.pitch = eulerAngles.angle.pitch;
   eulerAngles.yaw = eulerAngles.angle.yaw;
