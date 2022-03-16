@@ -666,7 +666,7 @@ EulerAngles LSM9DS1::update() {
     case SensorFusion::FUSION:
       return fusionEulerAngles(accelCount, gyroCount, magCount);
       break;
-    case SensorFusion::NONE:
+    case SensorFusion::CLASSIC:
       return updateEulerAngles();
       break;
   }

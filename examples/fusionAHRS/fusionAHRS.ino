@@ -30,7 +30,7 @@ void setup() {
   imu.setFusionAlgorithm(SensorFusion::FUSION);
   imu.setFusionPeriod(0.01f);   // Estimated sample period = 0.01 s = 100 Hz
   imu.setFusionThreshold(0.5f); // Stationary threshold = 0.5 degrees per second
-  imu.setFusionGain(0.5);       // Fusion Filter Gain
+  imu.setFusionGain(0.5);       // Default Fusion Filter Gain - try 7.5 for a much quicker response
 
   //  Start Serial and wait for connection
   Serial.begin(115200);
@@ -38,17 +38,6 @@ void setup() {
 
   if (imu.connected()) {
     Serial.println("LSM9DS1 IMU Connected."); 
-
-    //  Paste your calibration bias offset HERE
-    //  This information comes from the testAndCalibrate.ino 
-    //  sketch in the library examples sub-directory.
-    imu.loadAccBias(0.070862, -0.046570, -0.016907);
-    imu.loadGyroBias(0.800018, 0.269165, -0.097198);
-    imu.loadMagBias(-0.192261, -0.012085, 0.118652);
-
-    //  This sketch assumes that the LSM9DS1 is already calibrated, 
-    //  If so, start processing IMU data. If not, run the testAndCalibrate 
-    //  sketch first.
     imu.start();
   } else {
     Serial.println("LSM9DS1 IMU Not Detected.");
@@ -60,8 +49,8 @@ void loop() {
   //  Check for new IMU data and update angles
   angles = imu.update();
   
-  //  Wait for new sample
-  delay(10);  
+  //  Wait for new sample - 7 ms delay provides a 100Hz sample rate / loop frequency
+  delay(7);  
 
   //  Display sensor data every displayPeriod, non-blocking.
   if (millis() - previousMillis >= displayPeriod) {

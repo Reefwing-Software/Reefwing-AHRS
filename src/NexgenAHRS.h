@@ -63,7 +63,7 @@ enum class SensorFusion { // Sensor fusion algorithm options
   MAHONY,
   COMPLEMENTARY,
   FUSION,
-  NONE
+  CLASSIC
 };
 
 struct SelfTestResults {

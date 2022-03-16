@@ -14,15 +14,17 @@
 
  - Complementary Filter
  - Madgwick Filter
+ - Fusion (Madgwick Filter v2)
  - Mahony Filter
- - NONE: Euler Angles are updated using trigonometry
+ - Classic Complementary Filter: Euler Angles are updated using trigonometry
 
- We found that we experienced significant gyroscopic drift with the complementary filter. The Madgwick and Mahony filters fixes this issue but take a bit longer to settle on an angle. Of the two, Mahony is a bit faster than Madgwick, but the best filter and associated free parameter settings will depend on the application.
+ We found that we experienced significant gyroscopic drift with the classic complementary filter. The Madgwick and Mahony filters fixes this issue but take a bit longer to settle on an angle. Of the two, Mahony is a bit faster than Madgwick, but the best filter and associated free parameter settings will depend on the application.
 
  A free parameter is defined as a variable in our sensor fusion algorithm which cannot be determined by the model and must be estimated experimentally or theoretically. The free parameters which need to be set for the three sensor fusion options are:
 
  - Alpha (𝛂) for the **Complementary filter**. Alpha is known as the filter co-efficient, smoothing factor or gain. It determines the cutoff frequency for the high pass filter, which we pass the gyro rate through. `𝛂 = 𝜏 / (𝜏 + ∆t)` where `𝜏 = filter time constant` and `∆t = imu sampling rate`. A typical value for `𝛂` is 0.95 to 0.98 but it depends on the sampling rate and application. A lot more detail is provided in our article [How to Write your own Flight Controller Software - Part 7]().
  - Kp and Ki for the **Mahony filter**. These are the free parameters in the Mahony filter and fusion scheme, Kp for proportional feedback, and Ki is for integral. The Madgwick and Mahony filters differ with regards to the resolution of sensor biases. Mahony uses a proportional and integral controller to correct the gyroscope bias, whereas Madgwick uses only a proportional controller. The Mahony filter takes into consideration the disparity between the orientation from the gyroscope and the estimation from the magnetometer and accelerometer and weighs them according to its gains. The changes made to the gyroscope are given by: `Kp ∗ em + Ki ∗ ei`, where `em` is the sensor error of the gyroscope, and `ei` is the integral error, which is calculated by: `em = 1 / sampling frequency`. The filter default values are: `Kp = 10.0f` and `Ki = 0.0f`.
+ - Gain for the **Fusion filter**. Equivalent to beta in the original Madgwick filter. A low gain will decrease the influence of the accelerometer and magnetometer so that the algorithm will better reject disturbances causes by translational motion and temporary magnetic distortions. However, a low gain will also increase the risk of drift due to gyroscope calibration errors. The `default value is 0.5`.
  - Beta (𝛃) for the **Madgwick filter**. The gain `𝛽` represents all mean zero gyroscope measurement errors, expressed as the magnitude of a quaternion derivative. It is defined using the angular velocity. Beta is based on our estimate of gyroscope measurement error (e.g., `GyroMeasError = 40` degrees per second is used as a default). We calculate beta using the code shown below.
 
  ```c++
@@ -33,6 +35,8 @@ For the Madgwick filter there is a tradeoff in the beta parameter between accura
 
 Increasing beta (`GyroMeasError`) by about a factor of fifteen, the response time is reduced to ~2 seconds. We haven't noticed any reduction in solution accuracy with this reduced lag. This is essentially the I coefficient in a PID control sense; the bigger the feedback coefficient, the faster the solution converges, usually at the expense of accuracy. In any case, beta is the free parameter in the Madgwick filtering and fusion scheme.
 
+The Fusion Filter (Madgwick v2) operates similarly. The default gain is 0.5 but this results in a fair lag until the angle settles, increasing this to 7.5 provides significantly faster response.
+
 The default free parameters are set in the LSM9DS1 `begin()` method, so custom values need to be assigned after this and before the `update()` method is called in `loop()`. The available `LSM9DS1` class set free parameter methods are:
 
 ```c++
@@ -41,6 +45,7 @@ void setBeta(float b);            // Madgwick Filter
 void setGyroMeasError(float gme); // Madgwick Filter - value in degrees per second
 void setKp(float p);              // Mahony Filter - proportional term
 void setKi(float i);              // Mahony Filter - integral term
+void setFusionGain(float g);      //  Fusion Filter - similar to beta
 ```
 
 For the Madgwick Filter use either `setBeta()` or `setGyroMeasError()`, **but not both**, since they both effect beta. 
@@ -112,7 +117,9 @@ void loop() {
 }
 ```
 
-It is strongly recommended that you run the test and calibrate sketch first to obtain the gyro, acc and mag biases for your board, see the `serialRollPitchYaw.ino` example sketch for how these are applied.
+Unless you are using the Fusion filter, it is strongly recommended that you run the test and calibrate sketch first to obtain the gyro, acc and mag biases for your board, see the `serialRollPitchYaw.ino` example sketch for how these are applied.
+
+The Fusion filter has a gyroscope bias correction algorithm which provides run-time calibration of the gyroscope bias. The algorithm will detect when the gyroscope is stationary for a set period of time (`fusionThreshold`) and then begin to sample gyroscope measurements to calculate the bias as an average.
 
 The EulerAngles data structure returned by the `imu.update()` method is defined as:
 
@@ -265,3 +272,20 @@ You need to run the test a few times to get a feel for where the true optimum is
 However, for the Madgwick filter there is a tradeoff in the beta parameter between accuracy and response speed. In the original Madgwick study, a beta of 0.041 (corresponding to GyroMeasError of 2.7 degrees/s) was found to give optimal accuracy. With this value, the LSM9SD1 response time is about 10 seconds to a stable initial quaternion. Subsequent changes also require a longish lag time to a stable output, not fast enough for a quadcopter!
 
 Increasing beta (GyroMeasError) by about a factor of fifteen (beta = 0.6), the response time is reduced to ~2 seconds. We haven't noticed any reduction in solution accuracy with this reduced lag. This is essentially the I coefficient in a PID control sense; the bigger the feedback coefficient, the faster the solution converges, usually at the expense of accuracy.
+
+### 6. Fusion AHRS
+[Fusion](https://github.com/xioTechnologies/Fusion) is the updated version of the Madgwick filter and was specifically developed for use with embedded systems and has been optimised for execution speed. 
+
+```c++
+  imu.setFusionAlgorithm(SensorFusion::FUSION);
+  imu.setFusionPeriod(0.01f);   // Estimated sample period = 0.01 s = 100 Hz
+  imu.setFusionThreshold(0.5f); // Stationary threshold = 0.5 degrees per second
+  imu.setFusionGain(0.5);       // Default Fusion Filter Gain
+```
+
+The fusion AHRS sketch is similar to the other examples, apart from the Fusion specific configuration shown above. This is what we will focus on.
+
+- `imu.setFusionPeriod(0.01f)`: One difference with this filter is that you need to know the frequency that the model will be updated in advance. This is normally either the sensor sample rate or the loop frequency of the Arduino board (whichever is slower). In this example we tweaked the delay amount in `loop()` to get 100 Hz (i.e., a period of 0.01 seconds).
+- `imu.setFusionThreshold(0.5f)`: The gyroscope bias correction algorithm provides run-time calibration of the gyroscope bias. The algorithm will detect when the gyroscope is stationary for a set period of time (`fusionThreshold`) and then begin to sample gyroscope measurements to calculate the bias as an average. This is why the fusion filter doesn't require prior calibration.
+- `imu.setFusionGain(0.5)`: The fusion algorithm is governed by a gain. A low gain will decrease the influence of the accelerometer and magnetometer so that the algorithm will better reject disturbances causes by translational motion and temporary magnetic distortions. However, a low gain will also increase the risk of drift due to gyroscope calibration errors. Madgwick suggests a gain value of 0.5, but this results in a lagging angle resolution. For a drone we think a gain of around 7.5 is better. This provides a much faster angle response without appearing to sacrifice too much accuracy.
+
