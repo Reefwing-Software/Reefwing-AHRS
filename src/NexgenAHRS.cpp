@@ -672,8 +672,35 @@ EulerAngles LSM9DS1::update() {
   }
 
   eulerAngles = quaternion.toEulerAngles(declination);
+  eulerAngles = toNED();  //  Convert all angles to North East Down (NED) reference frame
 
   return eulerAngles;
+}
+
+EulerAngles LSM9DS1::toNED() {
+  //  Adjust filter angles to be consistent with NED reference frame
+  switch (fusion) {
+    case SensorFusion::MADGWICK:
+      eulerAngles.roll = -eulerAngles.roll;
+      eulerAngles.pitch = -eulerAngles.pitch;
+      eulerAngles.pitchRadians = -eulerAngles.pitchRadians;
+      eulerAngles.rollRadians = -eulerAngles.rollRadians;
+      break;
+    case SensorFusion::MAHONY:
+      eulerAngles.roll = -eulerAngles.roll;
+      eulerAngles.pitch = -eulerAngles.pitch;
+      eulerAngles.pitchRadians = -eulerAngles.pitchRadians;
+      eulerAngles.rollRadians = -eulerAngles.rollRadians;
+      break;
+    case SensorFusion::COMPLEMENTARY:
+      eulerAngles.yaw = -eulerAngles.yaw;
+      eulerAngles.yawRadians = -eulerAngles.yawRadians;
+      break;
+    case SensorFusion::FUSION:
+      break;
+    case SensorFusion::CLASSIC:
+      break;
+  }
 }
 
 EulerAngles LSM9DS1::updateEulerAngles() {
@@ -695,9 +722,10 @@ EulerAngles LSM9DS1::updateEulerAngles() {
   float mag_x_compensated = sensorData.mx * cos(eulerAngles.pitchRadians) + sensorData.mz * sin(eulerAngles.pitchRadians);
   float mag_y_compensated = sensorData.mx * sin(eulerAngles.rollRadians) * sin(eulerAngles.pitchRadians) + sensorData.my * cos(eulerAngles.rollRadians) - sensorData.mz * sin(eulerAngles.rollRadians) * cos(eulerAngles.pitchRadians);
 
-  eulerAngles.yaw = atan2(mag_x_compensated, mag_y_compensated) * RAD_TO_DEG;    //  Yaw compensated for tilt
+  eulerAngles.yawRadians = -atan2(mag_x_compensated, mag_y_compensated);
+  eulerAngles.yaw =  eulerAngles.yawRadians * RAD_TO_DEG;    //  Yaw compensated for tilt
   //  float magYawAngle = atan2(sensorData.mx, sensorData.my) * RAD_TO_DEG;      //  Raw yaw from magnetometer, uncompensated for tilt - alternative yaw value
-  eulerAngles.yawRadians = eulerAngles.yaw * DEG_TO_RAD;
+  
   eulerAngles.heading = eulerAngles.yaw - declination;
 
   return eulerAngles;           
@@ -735,9 +763,14 @@ EulerAngles LSM9DS1::fusionEulerAngles(int16_t accRaw[3], int16_t gyroRaw[3], in
   // Convert to Euler angles
   FusionEulerAngles fusionEulerAngles = FusionQuaternionToEulerAngles(FusionAhrsGetQuaternion(&fusionAhrs));
 
-  eulerAngles.roll = fusionEulerAngles.angle.roll;
-  eulerAngles.pitch = fusionEulerAngles.angle.pitch;
-  eulerAngles.yaw = fusionEulerAngles.angle.yaw;
+  //  Translate from FUSION NWU frame to Nexgen NED reference frame
+  eulerAngles.roll = -fusionEulerAngles.angle.roll;
+  eulerAngles.pitch = -fusionEulerAngles.angle.pitch;
+  eulerAngles.yaw = -fusionEulerAngles.angle.yaw;
+
+  eulerAngles.rollRadians = eulerAngles.roll * DEG_TO_RAD;
+  eulerAngles.pitchRadians = eulerAngles.pitch * DEG_TO_RAD;
+  eulerAngles.yawRadians = eulerAngles.yaw * DEG_TO_RAD;
 
   return eulerAngles;
 }

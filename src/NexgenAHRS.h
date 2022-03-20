@@ -182,6 +182,7 @@ class LSM9DS1 {
     FusionBias fusionBias;
     FusionAhrs fusionAhrs;
 
+    EulerAngles toNED();
     EulerAngles updateEulerAngles();
     EulerAngles fusionEulerAngles(int16_t accRaw[3], int16_t gyroRaw[3], int16_t magRaw[3]);
 
