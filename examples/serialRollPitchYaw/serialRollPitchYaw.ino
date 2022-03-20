@@ -10,6 +10,16 @@
 
   1.0.0 Original Release.           22/02/22
 
+  This sketch is congigured to work with the MADGWICK, MAHONY,
+  CLASSIC and COMPLEMENTARY Sensor Fusion options. Set the 
+  algorithm that you wish to use with:
+
+  imu.setFusionAlgorithm(SensorFusion::MADGWICK);
+
+  If you want to test the FUSION (Madgwick v2) algoritm, then use
+  the fusionAHRS example sketch or add the FUSION specific
+  configuration to this sketch.
+
 ******************************************************************/
 
 #include <NexgenAHRS.h>
