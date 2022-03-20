@@ -701,6 +701,7 @@ EulerAngles LSM9DS1::toNED() {
     case SensorFusion::CLASSIC:
       break;
   }
+  return eulerAngles;
 }
 
 EulerAngles LSM9DS1::updateEulerAngles() {
