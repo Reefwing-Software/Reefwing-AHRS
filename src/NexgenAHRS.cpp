@@ -5,10 +5,11 @@
   @copyright  Please see the accompanying LICENSE file.
 
   Code:        David Such
-  Version:     1.0.0
-  Date:        22/02/22
+  Version:     1.1.0
+  Date:        25/05/22
 
-  1.0.0 Original Release.           12/02/22
+  1.0.0 Original Release.           22/02/22
+  1.1.0 Added NONE fusion option.   25/05/22
 
   Credit - LPS22HB Absolute Digital Barometer class 
            based on work by Adrien Chapelet for IoThings.
@@ -667,7 +668,15 @@ EulerAngles LSM9DS1::update() {
       return fusionEulerAngles(accelCount, gyroCount, magCount);
       break;
     case SensorFusion::CLASSIC:
-      return updateEulerAngles();
+      updateEulerAngles();
+      complementaryUpdate();
+      tiltCompensatedYaw();
+      return eulerAngles;
+      break;
+    case SensorFusion::NONE:
+      updateEulerAngles();
+      tiltCompensatedYaw();
+      return eulerAngles;
       break;
   }
 
@@ -700,25 +709,25 @@ EulerAngles LSM9DS1::toNED() {
       break;
     case SensorFusion::CLASSIC:
       break;
+    case SensorFusion::NONE:
+      break;
   }
   return eulerAngles;
 }
 
-EulerAngles LSM9DS1::updateEulerAngles() {
-  gyrRollAngle  += sensorData.gx * deltaT;   // Angle around the X-axis
-  gyrPitchAngle += sensorData.gy * deltaT;   // Angle around the Y-axis
-  gyrYawAngle   += sensorData.gz * deltaT;   // Angle around the Z-axis
-
+void LSM9DS1::complementaryUpdate() {
   // Convert from force vector to angle using 3 axis formula - result in radians
   float accRollAngle  =  atan(-1 * sensorData.ay / sqrt(pow(sensorData.ax, 2) + pow(sensorData.az, 2)));
   float accPitchAngle =  -atan(-1 * sensorData.ax / sqrt(pow(sensorData.ay, 2) + pow(sensorData.az, 2)));
 
   //  Combine gyro and acc angles using a complementary filter
-  eulerAngles.pitch = alpha * gyrPitchAngle + (1.0f - alpha) * accPitchAngle * RAD_TO_DEG;
-  eulerAngles.roll = alpha * gyrRollAngle + (1.0f - alpha) * accRollAngle * RAD_TO_DEG;
+  eulerAngles.pitch = alpha * eulerAngles.pitch + (1.0f - alpha) * accPitchAngle * RAD_TO_DEG;
+  eulerAngles.roll = alpha * eulerAngles.roll + (1.0f - alpha) * accRollAngle * RAD_TO_DEG;
   eulerAngles.pitchRadians = eulerAngles.pitch * DEG_TO_RAD;
   eulerAngles.rollRadians = eulerAngles.roll * DEG_TO_RAD;
+}
 
+void LSM9DS1::tiltCompensatedYaw() {
   //  Calculate yaw using magnetometer & derived roll and pitch
   float mag_x_compensated = sensorData.mx * cos(eulerAngles.pitchRadians) + sensorData.mz * sin(eulerAngles.pitchRadians);
   float mag_y_compensated = sensorData.mx * sin(eulerAngles.rollRadians) * sin(eulerAngles.pitchRadians) + sensorData.my * cos(eulerAngles.rollRadians) - sensorData.mz * sin(eulerAngles.rollRadians) * cos(eulerAngles.pitchRadians);
@@ -728,8 +737,30 @@ EulerAngles LSM9DS1::updateEulerAngles() {
   //  float magYawAngle = atan2(sensorData.mx, sensorData.my) * RAD_TO_DEG;      //  Raw yaw from magnetometer, uncompensated for tilt - alternative yaw value
   
   eulerAngles.heading = eulerAngles.yaw - declination;
+}
 
-  return eulerAngles;           
+void LSM9DS1::updateEulerAngles() {
+  // Auxiliary variables to avoid repeated arithmetic
+  float sinPHI = sin(eulerAngles.rollRadians);
+  float cosPHI = cos(eulerAngles.rollRadians);
+  float cosTHETA = cos(eulerAngles.pitchRadians);
+  float tanTHETA = tan(eulerAngles.pitchRadians);
+
+  //  Convert gyro rates to Euler rates (ground reference frame)
+  //  Euler Roll Rate, ϕ ̇= p + sin(ϕ)tan(θ) × q + cos(ϕ)tan(θ) × r
+  //  Euler Pitch Rate, θ ̇= cos(ϕ) × q - sin(ϕ) × r
+  //  Euler Yaw Rate, ψ ̇= [sin(ϕ) × q]/cos(θ) + cos(ϕ)cos(θ) × r
+
+  float eulerRollRate = sensorData.gy + sinPHI * tanTHETA * sensorData.gx + cosPHI * tanTHETA * sensorData.gz;
+  float eulerPitchRate = cosPHI * sensorData.gx - sinPHI * sensorData.gz;
+  float eulerYawRate = (sinPHI * sensorData.gx) / cosTHETA + cosPHI * cosTHETA * sensorData.gz;
+
+  eulerAngles.rollRadians  += eulerRollRate * deltaT;    // Angle around the X-axis
+  eulerAngles.pitchRadians += eulerPitchRate * deltaT;   // Angle around the Y-axis
+  eulerAngles.yawRadians   += eulerYawRate * deltaT;     // Angle around the Z-axis    
+  eulerAngles.roll = eulerAngles.rollRadians * RAD_TO_DEG;
+  eulerAngles.pitch = eulerAngles.pitchRadians * RAD_TO_DEG;
+  eulerAngles.yaw = eulerAngles.yawRadians * RAD_TO_DEG;
 }
 
 EulerAngles LSM9DS1::fusionEulerAngles(int16_t accRaw[3], int16_t gyroRaw[3], int16_t magRaw[3]) {

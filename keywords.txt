@@ -70,3 +70,10 @@ getBiasOffsets  KEYWORD2
 #######################################
 # Constants (LITERAL1)
 #######################################
+
+MADGWICK    LITERAL1
+MAHONY  LITERAL1
+COMPLEMENTARY   LITERAL1
+FUSION  LITERAL1
+CLASSIC LITERAL1
+NONE    LITERAL1

@@ -6,6 +6,8 @@
 
  The AHRS will convert the gyroscope rate and accelerometer force data to a roll and pitch angle. The yaw angle is then calculated using the pitch, roll and magnetometer data. 
 
+ Version 1.1.0 of the library added the NONE option for Sensor Fusion. This option is used if you want Euler angles calculated but no sensor fusion filter applied. This release also fixed a bug in the Classic complementary filter calculation.
+
  ## Sensor Fusion & Free Parameters
 
  Sensor fusion is the process of combining sensory data or data derived from disparate sources such that the resulting information has less uncertainty than would be possible when these sources were used individually. With the gyroscope and accelerometer, we have two angle sensors which should be providing the same data but with different errors. The concept is to combine or fuse the data in such a way as to eliminate the errors and produce an accurate angle that we can use.
@@ -17,6 +19,7 @@
  - Fusion (Madgwick Filter v2)
  - Mahony Filter
  - Classic Complementary Filter: Euler Angles are updated using trigonometry
+ - NONE: Euler angles are calculated but no sensor fusion filter is used.
 
  We found that we experienced significant gyroscopic drift with the classic complementary filter. The Madgwick and Mahony filters fixes this issue but take a bit longer to settle on an angle. Of the two, Mahony is a bit faster than Madgwick, but the best filter and associated free parameter settings will depend on the application.
 

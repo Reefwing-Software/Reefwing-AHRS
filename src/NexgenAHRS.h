@@ -5,10 +5,11 @@
   @copyright  Please see the accompanying LICENSE file.
 
   Code:        David Such
-  Version:     1.0.0
-  Date:        22/02/22
+  Version:     1.1.0
+  Date:        25/05/22
 
   1.0.0 Original Release.           22/02/22
+  1.1.0 Added NONE fusion option.   25/05/22
 
   Credit - LPS22HB Absolute Digital Barometer class 
            based on work by Adrien Chapelet for IoThings.
@@ -63,7 +64,8 @@ enum class SensorFusion { // Sensor fusion algorithm options
   MAHONY,
   COMPLEMENTARY,
   FUSION,
-  CLASSIC
+  CLASSIC,
+  NONE
 };
 
 struct SelfTestResults {
@@ -182,8 +184,11 @@ class LSM9DS1 {
     FusionBias fusionBias;
     FusionAhrs fusionAhrs;
 
+    void updateEulerAngles();
+    void complementaryUpdate();
+    void tiltCompensatedYaw();
+
     EulerAngles toNED();
-    EulerAngles updateEulerAngles();
     EulerAngles fusionEulerAngles(int16_t accRaw[3], int16_t gyroRaw[3], int16_t magRaw[3]);
 
     uint8_t OSR, Godr, Gbw, Aodr, Abw, Modr, Mmode;  
