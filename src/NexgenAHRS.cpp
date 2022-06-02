@@ -550,11 +550,6 @@ void LSM9DS1::begin() {
   Ki = 0.0f;
   gain = 0.5f; // Fusion filter default gain
 
-  //  Initialise variables used for SensorFusion option - NONE
-  gyrRollAngle  = 0.0;
-  gyrPitchAngle = 0.0;
-  gyrYawAngle   = 0.0;
-
   //  Scale resolutions per LSB for each sensor
   //  sets aRes, gRes, mRes and aScale, gScale, mScale
   setAccResolution(Ascale::AFS_2G);

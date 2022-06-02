@@ -199,7 +199,6 @@ class LSM9DS1 {
     float gyroBias[3] = {0, 0, 0}, accelBias[3] = {0, 0, 0},  magBias[3] = {0, 0, 0}; 
     float declination;
     float gyroMeasError, alpha, beta, Kp, Ki, gain;   //  Sensor Fusion free parameters
-    float gyrRollAngle, gyrPitchAngle, gyrYawAngle;
     float fusionThreshold, fusionPeriod;
 
     FusionVector3 gyroscopeSensitivity;
