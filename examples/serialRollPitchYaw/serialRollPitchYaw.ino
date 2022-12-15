@@ -5,10 +5,12 @@
   @copyright  Please see the accompanying LICENSE file.
 
   Code:        David Such
-  Version:     1.0.0
-  Date:        22/02/22
+  Version:     2.0.0
+  Date:        15/12/22
 
   1.0.0 Original Release.           22/02/22
+  1.1.0 Added NONE fusion option.   25/05/22
+  2.0.0 Changed Repo & Branding     15/12/22
 
   This sketch is congigured to work with the MADGWICK, MAHONY,
   CLASSIC and COMPLEMENTARY Sensor Fusion options. Set the 
@@ -22,7 +24,7 @@
 
 ******************************************************************/
 
-#include <NexgenAHRS.h>
+#include <ReefwingAHRS.h>
 
 LSM9DS1 imu;
 EulerAngles angles;

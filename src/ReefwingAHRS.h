@@ -1,15 +1,16 @@
 /******************************************************************
-  @file       NexgenAHRS.h
+  @file       ReefwingAHRS.h
   @brief      Attitude and Heading Reference System (AHRS) for the Nano 33 BLE.
   @author     David Such
   @copyright  Please see the accompanying LICENSE file.
 
   Code:        David Such
-  Version:     1.1.0
-  Date:        25/05/22
+  Version:     2.0.0
+  Date:        15/12/22
 
   1.0.0 Original Release.           22/02/22
   1.1.0 Added NONE fusion option.   25/05/22
+  2.0.0 Changed Repo & Branding     15/12/22
 
   Credit - LPS22HB Absolute Digital Barometer class 
            based on work by Adrien Chapelet for IoThings.
@@ -25,8 +26,8 @@
 
 ******************************************************************/
 
-#ifndef NexgenAHRS_h
-#define NexgenAHRS_h
+#ifndef ReefwingAHRS_h
+#define ReefwingAHRS_h
 
 #include <Arduino.h>
 

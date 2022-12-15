@@ -1,8 +1,8 @@
-# Nexgen AHRS
+# Reefwing AHRS
  
- Our Magpie flight controller for quadcopters is based around the Arduino Nano 33 BLE board. This board includes the LSM9DS1 chip which we use as an Inertial Measurement Unit (IMU). The IMU determines the current orientation of the drone. 
+ The Reefwing flight controller for quadcopters is based around the Arduino Nano 33 BLE board. This board includes the LSM9DS1 chip which we use as an Inertial Measurement Unit (IMU). The IMU determines the current orientation of the drone. 
 
- The Nexgen AHRS library provides an Attitude and Heading Reference System (AHRS) class for use with the Arduino Nano 33 BLE and the Nano 33 BLE SENSE boards.
+ The Reefwing AHRS library provides an Attitude and Heading Reference System (AHRS) class for use with the Arduino Nano 33 BLE and the Nano 33 BLE SENSE boards.
 
  The AHRS will convert the gyroscope rate and accelerometer force data to a roll and pitch angle. The yaw angle is then calculated using the pitch, roll and magnetometer data. 
 
@@ -12,7 +12,7 @@
 
  Sensor fusion is the process of combining sensory data or data derived from disparate sources such that the resulting information has less uncertainty than would be possible when these sources were used individually. With the gyroscope and accelerometer, we have two angle sensors which should be providing the same data but with different errors. The concept is to combine or fuse the data in such a way as to eliminate the errors and produce an accurate angle that we can use.
 
- The Nexgen AHRS provides the following Sensor Fusion options:
+ The Reefwing AHRS provides the following Sensor Fusion options:
 
  - Complementary Filter
  - Madgwick Filter
@@ -90,9 +90,9 @@ An accelerometer is an electromechanical device used to measure acceleration for
 
 A magnetometer is an instrument used for measuring magnetic forces, and in our context, the earth’s magnetism. The Earth’s magnetic field is a 3-dimensional vector that, like gravity, can be used to determine long-term orientation. The typical magnitude of the Earth’s magnetic field is between 20 µT and 70 µT.
 
-## How to Use the Nexgen AHRS Library
+## How to Use the Reefwing AHRS Library
 
-The Nexgen AHRS Library includes the following classes:
+The Reefwing AHRS Library includes the following classes:
 
   - Quaternion: converts Euler Angles to a Quaternion and includes open source complementary, madgwick and mahoney sensor fusion quaternion update methods.
   - LSM9DS1: for testing, calibrating and reading the IMU data from the sensor.
@@ -105,7 +105,7 @@ The Quaternion class is used by the LSM9DS1 class to provide fast updates to the
 At its simplest, a sketch will include:
 
 ```c++
-#include <NexgenAHRS.h>
+#include <ReefwingAHRS.h>
 
 LSM9DS1 imu;
 EulerAngles angles;
@@ -194,7 +194,7 @@ Before you use an IMU for the first time, you need to calibrate it. The results 
 
 #### 2.1 Gyroscope and Accelerometer
 
-The LSM9DS1 includes a self test function that is not particularly well documented. To start the Gyro self-test, control register 10, bit ST_G needs to be set to 1. For the accelerometer, control register 10, bit ST_XL is set. The Nexgen AHRS library looks after this in the `selfTest` method. It calculates the average of the IMU at-rest readings and then loads these resulting offsets into the accelerometer and gyroscope bias registers.
+The LSM9DS1 includes a self test function that is not particularly well documented. To start the Gyro self-test, control register 10, bit ST_G needs to be set to 1. For the accelerometer, control register 10, bit ST_XL is set. The Reefwing AHRS library looks after this in the `selfTest` method. It calculates the average of the IMU at-rest readings and then loads these resulting offsets into the accelerometer and gyroscope bias registers.
 
 An accelerometer in a steady state on a horizontal surface should measure 0 g on both the X-axis and Y-axis, whereas the Z-axis should measure 1 g. Ideally, the output is in the middle of the dynamic range of the sensor. A deviation from the ideal value is called a zero-g offset. Similarly, the gyro zero-rate level describes the actual output signal if there is no angular rate present and zero-gauss level offset describes the deviation of an actual output signal from the ideal output if no magnetic field is present.
 
@@ -255,7 +255,7 @@ For the complementary filter, with `𝛂 = 0.0` the angle result will be  100% f
 ### 5. Beta Optimisation for the Madgwick Filter
 The filter gain β represents all mean zero gyroscope measurement errors, expressed as the magnitude of a quaternion derivative. This error represents the gyroscope bias.
 
-What this means is that beta is a parameter that you can tweak to optimise the filter results for your Arduino. In Madgwick's paper, he tests different values of 𝛃 (0 to 0.5) and graphs the results. A copy of this paper may be found in the theory folder of the Nexgen AHRS library. The y-axis on Madgwick's graph, [Effect of β on filter performance](https://www.samba.org/tridge/UAV/madgwick_internal_report.pdf), represents the RMS error in degrees.
+What this means is that beta is a parameter that you can tweak to optimise the filter results for your Arduino. In Madgwick's paper, he tests different values of 𝛃 (0 to 0.5) and graphs the results. A copy of this paper may be found in the theory folder of the Reefwing AHRS library. The y-axis on Madgwick's graph, [Effect of β on filter performance](https://www.samba.org/tridge/UAV/madgwick_internal_report.pdf), represents the RMS error in degrees.
 
 `There is a clear optimal value of β for each filter implementation; high enough to minimises errors due to integral drift but sufficiently low enough that unnecessary noise is not introduced by large steps of gradient descent iterations.`
 
@@ -263,7 +263,7 @@ RMS is often used to compare a theoretical prediction against an actual result. 
 
 `𝜽rms = √[(𝜽1² + 𝜽2² + … + 𝜽n²)/n]`
 
-This sketch assists with beta optimisation of your Madgwick filter. It will print to the serial port the value for beta between 0.0 and 0.5 and its associated static RMS error in CSV format. You can graph these results. The sketch will record the beta with the minimum error in a static situation for pitch and roll. This sketch also demonstrates how you can adjust the filter gain in the Nexgen AHRS library. The optimum beta and minimum error is printed out at the end of the sketch.
+This sketch assists with beta optimisation of your Madgwick filter. It will print to the serial port the value for beta between 0.0 and 0.5 and its associated static RMS error in CSV format. You can graph these results. The sketch will record the beta with the minimum error in a static situation for pitch and roll. This sketch also demonstrates how you can adjust the filter gain in the Reefwing AHRS library. The optimum beta and minimum error is printed out at the end of the sketch.
 
 ```
 Optimum Beta = 0.17, with an RMS error of 0.00 degrees. 
