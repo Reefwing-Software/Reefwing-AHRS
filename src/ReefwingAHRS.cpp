@@ -764,7 +764,7 @@ EulerAngles LSM9DS1::fusionEulerAngles(int16_t accRaw[3], int16_t gyroRaw[3], in
   // Calibrate gyroscope
   FusionVector3 uncalibratedGyroscope;
 
-  uncalibratedGyroscope.axis = { gyroRaw[0], gyroRaw[1], gyroRaw[2] };
+  uncalibratedGyroscope.axis = { -(gyroRaw[0]), -(gyroRaw[1]), -(gyroRaw[2]) };
 
   FusionVector3 calibratedGyroscope = FusionCalibrationInertial(uncalibratedGyroscope, FUSION_ROTATION_MATRIX_IDENTITY, gyroscopeSensitivity, FUSION_VECTOR3_ZERO);
 
