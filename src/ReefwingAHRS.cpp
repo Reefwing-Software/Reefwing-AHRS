@@ -761,7 +761,7 @@ EulerAngles LSM9DS1::fusionEulerAngles(SensorData sensorData) {
   // Assign latest sensor data
   FusionVector gyroscope = {sensorData.gx, sensorData.gy, sensorData.gz};     // gyroscope data in degrees/s
   FusionVector accelerometer = {sensorData.ax, sensorData.ay, sensorData.az}; // accelerometer data in g
-  FusionVector magnetometer = {sensorData.mx, sensorData.my, sensorData.mz};                             // magnetometer data in arbitrary units
+  FusionVector magnetometer = {sensorData.mx, sensorData.my, sensorData.mz};  // magnetometer data in arbitrary units
 
   // Apply calibration
   gyroscope = FusionCalibrationInertial(gyroscope, gyroscopeMisalignment, gyroscopeSensitivity, gyroscopeOffset);
