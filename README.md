@@ -1,4 +1,4 @@
-![version](https://img.shields.io/github/v/tag/Reefwing-Software/Reefwing-AHRS)
+![version](https://img.shields.io/github/v/tag/Reefwing-Software/Reefwing-AHRS) ![License](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 # Reefwing AHRS
  
  The Reefwing flight controller for quadcopters is based around the Arduino Nano 33 BLE board. This board includes the LSM9DS1 chip which we use as an Inertial Measurement Unit (IMU). The IMU determines the current orientation of the drone. 
