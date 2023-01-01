@@ -1,4 +1,5 @@
-![version](https://img.shields.io/github/v/tag/Reefwing-Software/Reefwing-AHRS) ![License](https://img.shields.io/badge/license-MIT-green)
+![version](https://img.shields.io/github/v/tag/Reefwing-Software/Reefwing-AHRS) ![license](https://img.shields.io/badge/license-MIT-green) ![release](https://img.shields.io/github/release-date/Reefwing-Software/Reefwing-AHRS?color="red") ![open source](https://badgen.net/badge/open/source/blue?icon=github)
+
 # Reefwing AHRS
  
  The Reefwing flight controller for quadcopters is based around the Arduino Nano 33 BLE board. This board includes the LSM9DS1 chip which we use as an Inertial Measurement Unit (IMU). The IMU determines the current orientation of the drone. 
@@ -283,14 +284,12 @@ Increasing beta (GyroMeasError) by about a factor of fifteen (beta = 0.6), the r
 ```c++
   imu.setFusionAlgorithm(SensorFusion::FUSION);
   imu.setFusionPeriod(0.01f);   // Estimated sample period = 0.01 s = 100 Hz
-  imu.setFusionThreshold(0.5f); // Stationary threshold = 0.5 degrees per second
   imu.setFusionGain(0.5);       // Default Fusion Filter Gain
 ```
 
 The fusion AHRS sketch is similar to the other examples, apart from the Fusion specific configuration shown above. This is what we will focus on.
 
 - `imu.setFusionPeriod(0.01f)`: One difference with this filter is that you need to know the frequency that the model will be updated in advance. This is normally either the sensor sample rate or the loop frequency of the Arduino board (whichever is slower). In this example we tweaked the delay amount in `loop()` to get 100 Hz (i.e., a period of 0.01 seconds).
-- `imu.setFusionThreshold(0.5f)`: The gyroscope bias correction algorithm provides run-time calibration of the gyroscope bias. The algorithm will detect when the gyroscope is stationary for a set period of time (`fusionThreshold`) and then begin to sample gyroscope measurements to calculate the bias as an average. This is why the fusion filter doesn't require prior calibration.
 - `imu.setFusionGain(0.5)`: The fusion algorithm is governed by a gain. A low gain will decrease the influence of the accelerometer and magnetometer so that the algorithm will better reject disturbances causes by translational motion and temporary magnetic distortions. However, a low gain will also increase the risk of drift due to gyroscope calibration errors. Madgwick suggests a gain value of 0.5, but this results in a lagging angle resolution. For a drone we think a gain of around 7.5 is better. This provides a much faster angle response without appearing to sacrifice too much accuracy.
 
-
+For more details of how this algorithm operates, refer to the [Fusion Readme](theory/FUSION_README.md) in the theory folder of this repository.

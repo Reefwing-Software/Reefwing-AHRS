@@ -802,6 +802,12 @@ void LSM9DS1::setFusionAlgorithm(SensorFusion algo) {
   fusion = algo;
 }
 
+void LSM9DS1::setFusionPeriod(float p) {
+  sampleRate = (int)(1.0/p);
+  fusionSettings.rejectionTimeout = 5 * sampleRate;
+  FusionAhrsSetSettings(&fusionAhrs, &fusionSettings);
+}
+
 void LSM9DS1::setDeclination(float dec) {
   declination = dec;
 }
@@ -949,7 +955,6 @@ void LSM9DS1::setMagResolution(Mscale mscale) {
       break;
   }
 
-  hardIronBias.axis = { 0.0f, 0.0f, 0.0f }; // replace these values with actual hard-iron bias in uT if known
 }
 
 float LSM9DS1::getAccResolution() {

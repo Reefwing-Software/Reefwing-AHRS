@@ -154,7 +154,6 @@ class LSM9DS1 {
     void calibrateAccGyro();
     void calibrateMag();
     void setFusionPeriod(float p);
-    void setFusionThreshold(float t);
     void setFusionAlgorithm(SensorFusion algo);
     void setAlpha(float a);
     void setBeta(float b);
@@ -207,6 +206,7 @@ class LSM9DS1 {
     FusionVector accelerometerOffset = {0.0f, 0.0f, 0.0f};
     FusionMatrix softIronMatrix = {1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f};
     FusionVector hardIronOffset = {0.0f, 0.0f, 0.0f};
+    FusionVector hardIronBias = {0.0f, 0.0f, 0.0f};
 
     void updateEulerAngles();
     void complementaryUpdate();
@@ -223,10 +223,6 @@ class LSM9DS1 {
     float gyroBias[3] = {0, 0, 0}, accelBias[3] = {0, 0, 0},  magBias[3] = {0, 0, 0}; 
     float declination;
     float gyroMeasError, alpha, beta, Kp, Ki;   //  Sensor Fusion free parameters
-
-    FusionVector gyroscopeSensitivity;
-    FusionVector accelerometerSensitivity;
-    FusionVector hardIronBias;
 
     SensorData sensorData; // variables to hold latest sensor data values 
     Quaternion quaternion;
