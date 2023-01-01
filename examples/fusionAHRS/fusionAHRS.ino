@@ -5,12 +5,14 @@
   @copyright  Please see the accompanying LICENSE file.
 
   Code:        David Such
-  Version:     2.0.0
+  Version:     2.1.0
   Date:        15/12/22
 
   1.0.0 Original Release.           22/02/22
   1.1.0 Added NONE fusion option.   25/05/22
   2.0.0 Changed Repo & Branding     15/12/22
+  2.0.1 Invert Gyro Values PR       24/12/22
+  2.1.0 Updated Fusion Library      30/12/22
 
 ******************************************************************/
 
@@ -31,7 +33,6 @@ void setup() {
   imu.setDeclination(12.717);
   imu.setFusionAlgorithm(SensorFusion::FUSION);
   imu.setFusionPeriod(0.01f);   // Estimated sample period = 0.01 s = 100 Hz
-  imu.setFusionThreshold(0.5f); // Stationary threshold = 0.5 degrees per second
   imu.setFusionGain(0.5);       // Default Fusion Filter Gain - try 7.5 for a much quicker response
 
   //  Start Serial and wait for connection

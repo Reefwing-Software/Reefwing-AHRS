@@ -5,12 +5,14 @@
   @copyright  Please see the accompanying LICENSE file.
 
   Code:        David Such
-  Version:     2.0.0
+  Version:     2.1.0
   Date:        15/12/22
 
   1.0.0 Original Release.           22/02/22
   1.1.0 Added NONE fusion option.   25/05/22
   2.0.0 Changed Repo & Branding     15/12/22
+  2.0.1 Invert Gyro Values PR       24/12/22
+  2.1.0 Updated Fusion Library      30/12/22
 
   Credit - LPS22HB Absolute Digital Barometer class 
            based on work by Adrien Chapelet for IoThings.
@@ -23,6 +25,9 @@
            "An efficient orientation filter for inertial and 
            inertial/magnetic sensor arrays" written by Sebastian 
            O.H. Madgwick in April 30, 2010.
+         - Fusion Library is based on the revised AHRS algorithm 
+           presented in chapter 7 of Madgwick's PhD thesis.
+           ref: https://github.com/xioTechnologies/Fusion
 
 ******************************************************************/
 
@@ -168,6 +173,7 @@ class LSM9DS1 {
     BiasOffsets getBiasOffsets();
     SensorData filterFormat();
     SensorData rawData();
+    uint32_t sampleRate = 100; // Hz
 
   private:
     uint8_t whoAmIGyro();
@@ -182,15 +188,32 @@ class LSM9DS1 {
     void setMagneticBias(float* dest1);
     void copyArray(float* src, float* dst, int len);
 
-    FusionBias fusionBias;
     FusionAhrs fusionAhrs;
+    FusionOffset fusionOffset;
+
+    FusionAhrsSettings fusionSettings = {
+            .gain = 0.5f,
+            .accelerationRejection = 10.0f,
+            .magneticRejection = 20.0f,
+            .rejectionTimeout = 5 * sampleRate, /* 5 seconds */
+    };
+
+    // Define calibration (update with actual calibration data)
+    FusionMatrix gyroscopeMisalignment = {1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f};
+    FusionVector gyroscopeSensitivity = {1.0f, 1.0f, 1.0f};
+    FusionVector gyroscopeOffset = {0.0f, 0.0f, 0.0f};
+    FusionMatrix accelerometerMisalignment = {1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f};
+    FusionVector accelerometerSensitivity = {1.0f, 1.0f, 1.0f};
+    FusionVector accelerometerOffset = {0.0f, 0.0f, 0.0f};
+    FusionMatrix softIronMatrix = {1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f};
+    FusionVector hardIronOffset = {0.0f, 0.0f, 0.0f};
 
     void updateEulerAngles();
     void complementaryUpdate();
     void tiltCompensatedYaw();
 
     EulerAngles toNED();
-    EulerAngles fusionEulerAngles(int16_t accRaw[3], int16_t gyroRaw[3], int16_t magRaw[3]);
+    EulerAngles fusionEulerAngles(SensorData sensorData);
 
     uint8_t OSR, Godr, Gbw, Aodr, Abw, Modr, Mmode;  
     uint8_t aScale, gScale, mScale;
@@ -199,12 +222,11 @@ class LSM9DS1 {
     float deltaT;
     float gyroBias[3] = {0, 0, 0}, accelBias[3] = {0, 0, 0},  magBias[3] = {0, 0, 0}; 
     float declination;
-    float gyroMeasError, alpha, beta, Kp, Ki, gain;   //  Sensor Fusion free parameters
-    float fusionThreshold, fusionPeriod;
+    float gyroMeasError, alpha, beta, Kp, Ki;   //  Sensor Fusion free parameters
 
-    FusionVector3 gyroscopeSensitivity;
-    FusionVector3 accelerometerSensitivity;
-    FusionVector3 hardIronBias;
+    FusionVector gyroscopeSensitivity;
+    FusionVector accelerometerSensitivity;
+    FusionVector hardIronBias;
 
     SensorData sensorData; // variables to hold latest sensor data values 
     Quaternion quaternion;

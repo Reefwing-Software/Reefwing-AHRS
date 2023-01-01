@@ -5,12 +5,14 @@
   @copyright  Please see the accompanying LICENSE file.
 
   Code:        David Such
-  Version:     2.0.0
+  Version:     2.1.0
   Date:        15/12/22
 
   1.0.0 Original Release.           22/02/22
   1.1.0 Added NONE fusion option.   25/05/22
   2.0.0 Changed Repo & Branding     15/12/22
+  2.0.1 Invert Gyro Values PR       24/12/22
+  2.1.0 Updated Fusion Library      30/12/22
 
   Credit - LPS22HB Absolute Digital Barometer class 
            based on work by Adrien Chapelet for IoThings.
@@ -23,6 +25,9 @@
            "An efficient orientation filter for inertial and 
            inertial/magnetic sensor arrays" written by Sebastian 
            O.H. Madgwick in April 30, 2010.
+         - Fusion Library is based on the revised AHRS algorithm 
+           presented in chapter 7 of Madgwick's PhD thesis.
+           ref: https://github.com/xioTechnologies/Fusion
 
 ******************************************************************/
 
@@ -540,8 +545,6 @@ void LSM9DS1::begin() {
   Abw = ABW_50Hz;                 // accel data bandwidth
   Modr = MODR_10Hz;               // mag data sample rate
   Mmode = MMode_HighPerformance;  // magnetometer operation mode
-  fusionThreshold = 0.5;          // fusion filter stationary threshold (DPS)
-  fusionPeriod = 0.01f;           // fusion filter estimated sample period (s)
 
   //  Sensor Fusion Co-Efficients - see README.md
   gyroMeasError = M_PI * (40.0f / 180.0f);   // gyroscope measurement error in rads/s (start at 40 deg/s)
@@ -549,7 +552,6 @@ void LSM9DS1::begin() {
   beta = sqrt(3.0f / 4.0f) * gyroMeasError;   // compute beta
   Kp = 2.0f * 5.0f; // These are the free parameters in the Mahony filter and fusion scheme, Kp for proportional feedback, Ki for integral
   Ki = 0.0f;
-  gain = 0.5f; // Fusion filter default gain
 
   //  Scale resolutions per LSB for each sensor
   //  sets aRes, gRes, mRes and aScale, gScale, mScale
@@ -585,14 +587,10 @@ void LSM9DS1::start() {
   writeByte(LSM9DS1M_ADDRESS, LSM9DS1M_CTRL_REG4_M, Mmode << 2 ); // select z-axis mode
   writeByte(LSM9DS1M_ADDRESS, LSM9DS1M_CTRL_REG5_M, 0x40 ); // select block update mode
 
-  // Initialise gyroscope bias correction algorithm
-  FusionBiasInitialise(&fusionBias, fusionThreshold, fusionPeriod); // default stationary threshold = 0.5 degrees per second
-
   // Initialise AHRS algorithm
-  FusionAhrsInitialise(&fusionAhrs, gain); // default gain = 0.5
-
-  // Set optional magnetic field limits
-  FusionAhrsSetMagneticField(&fusionAhrs, 20.0f, 70.0f); // valid magnetic field range = 20 uT to 70 uT
+  FusionOffsetInitialise(&fusionOffset, sampleRate);
+  FusionAhrsInitialise(&fusionAhrs); 
+  FusionAhrsSetSettings(&fusionAhrs, &fusionSettings);
 }
 
 bool LSM9DS1::accelAvailable() {
@@ -661,7 +659,7 @@ EulerAngles LSM9DS1::update() {
       quaternion.complementaryUpdate(filterFormat(), alpha, deltaT);
       break;
     case SensorFusion::FUSION:
-      return fusionEulerAngles(accelCount, gyroCount, magCount);
+      return fusionEulerAngles(sensorData);
       break;
     case SensorFusion::CLASSIC:
       updateEulerAngles();
@@ -759,42 +757,31 @@ void LSM9DS1::updateEulerAngles() {
   eulerAngles.yaw = eulerAngles.yawRadians * RAD_TO_DEG;
 }
 
-EulerAngles LSM9DS1::fusionEulerAngles(int16_t accRaw[3], int16_t gyroRaw[3], int16_t magRaw[3]) {
-  //  The Fusion AHRS expects raw IMU values
-  // Calibrate gyroscope
-  FusionVector3 uncalibratedGyroscope;
+EulerAngles LSM9DS1::fusionEulerAngles(SensorData sensorData) {
+  // Assign latest sensor data
+  FusionVector gyroscope = {sensorData.gx, sensorData.gy, sensorData.gz};     // gyroscope data in degrees/s
+  FusionVector accelerometer = {sensorData.ax, sensorData.ay, sensorData.az}; // accelerometer data in g
+  FusionVector magnetometer = {sensorData.mx, sensorData.my, sensorData.mz};                             // magnetometer data in arbitrary units
 
-  uncalibratedGyroscope.axis = { gyroRaw[0], gyroRaw[1], gyroRaw[2] };
-
-  FusionVector3 calibratedGyroscope = FusionCalibrationInertial(uncalibratedGyroscope, FUSION_ROTATION_MATRIX_IDENTITY, gyroscopeSensitivity, FUSION_VECTOR3_ZERO);
-
-  // Calibrate accelerometer
-  FusionVector3 uncalibratedAccelerometer;
-
-  uncalibratedAccelerometer.axis = { accRaw[0], accRaw[1], accRaw[2] };
+  // Apply calibration
+  gyroscope = FusionCalibrationInertial(gyroscope, gyroscopeMisalignment, gyroscopeSensitivity, gyroscopeOffset);
+  accelerometer = FusionCalibrationInertial(accelerometer, accelerometerMisalignment, accelerometerSensitivity, accelerometerOffset);
+  magnetometer = FusionCalibrationMagnetic(magnetometer, softIronMatrix, hardIronOffset);
   
-  FusionVector3 calibratedAccelerometer = FusionCalibrationInertial(uncalibratedAccelerometer, FUSION_ROTATION_MATRIX_IDENTITY, accelerometerSensitivity, FUSION_VECTOR3_ZERO);
+  // Update gyroscope offset correction algorithm
+  gyroscope = FusionOffsetUpdate(&fusionOffset, gyroscope);
 
-  // Calibrate magnetometer
-  FusionVector3 uncalibratedMagnetometer;
-  
-  uncalibratedMagnetometer.axis = { magRaw[0], magRaw[1], magRaw[2] };
+  // Update gyroscope AHRS algorithm
+  FusionAhrsUpdate(&fusionAhrs, gyroscope, accelerometer, magnetometer, deltaT);
 
-  FusionVector3 calibratedMagnetometer = FusionCalibrationMagnetic(uncalibratedMagnetometer, FUSION_ROTATION_MATRIX_IDENTITY, hardIronBias);
-
-  // Update gyroscope bias correction algorithm
-  calibratedGyroscope = FusionBiasUpdate(&fusionBias, calibratedGyroscope);
-
-  // Update AHRS algorithm
-  FusionAhrsUpdate(&fusionAhrs, calibratedGyroscope, calibratedAccelerometer, calibratedMagnetometer, deltaT);
-
-  // Convert to Euler angles
-  FusionEulerAngles fusionEulerAngles = FusionQuaternionToEulerAngles(FusionAhrsGetQuaternion(&fusionAhrs));
+  // Algorithm outputs converted to Euler angles
+  const FusionEuler euler = FusionQuaternionToEuler(FusionAhrsGetQuaternion(&fusionAhrs));
+  const FusionVector earth = FusionAhrsGetEarthAcceleration(&fusionAhrs);
 
   //  Translate from FUSION NWU frame to Reefwing NED reference frame
-  eulerAngles.roll = -fusionEulerAngles.angle.roll;
-  eulerAngles.pitch = -fusionEulerAngles.angle.pitch;
-  eulerAngles.yaw = -fusionEulerAngles.angle.yaw;
+  eulerAngles.roll = -euler.angle.roll;
+  eulerAngles.pitch = -euler.angle.pitch;
+  eulerAngles.yaw = -euler.angle.yaw;
 
   eulerAngles.rollRadians = eulerAngles.roll * DEG_TO_RAD;
   eulerAngles.pitchRadians = eulerAngles.pitch * DEG_TO_RAD;
@@ -813,14 +800,6 @@ Quaternion LSM9DS1::getQuaternion() {
 
 void LSM9DS1::setFusionAlgorithm(SensorFusion algo) {
   fusion = algo;
-}
-
-void LSM9DS1::setFusionPeriod(float p) {
-  fusionPeriod = p;
-}
-
-void LSM9DS1::setFusionThreshold(float t) {
-  fusionThreshold = t;
 }
 
 void LSM9DS1::setDeclination(float dec) {
@@ -849,7 +828,8 @@ void LSM9DS1::setKi(float i) {
 }
 
 void LSM9DS1::setFusionGain(float g) {
-  gain = g;
+  fusionSettings.gain = g;
+  FusionAhrsSetSettings(&fusionAhrs, &fusionSettings);
 }
 
 uint8_t LSM9DS1::whoAmIGyro() {
