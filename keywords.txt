@@ -6,6 +6,7 @@
 # Datatypes (KEYWORD1)
 #######################################
 
+ReefwingAHRS    KEYWORD1
 LSM9DS1 KEYWORD1
 LPS22HB KEYWORD1
 Quaternion  KEYWORD1

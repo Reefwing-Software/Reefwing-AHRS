@@ -1,6 +1,7 @@
 /******************************************************************
-  @file       serialRollPitchYaw.ino
-  @brief      Print roll, pitch, yaw and heading angles
+  @file       nano33BLErev2.ino
+  @brief      Print roll, pitch, yaw and heading angles using the
+              BMI270/BMM150 IMUs on the Nano 33 BLE rev2
   @author     David Such
   @copyright  Please see the accompanying LICENSE file.
 
@@ -28,48 +29,44 @@
 ******************************************************************/
 
 #include <ReefwingAHRS.h>
+#include <Arduino_BMI270_BMM150.h>
 
-LSM9DS1 imu;
 EulerAngles angles;
+SensorData data;
 
 int loopFrequency = 0;
 const long displayPeriod = 1000;
 unsigned long previousMillis = 0;
 
 void setup() {
-  // Initialise the LSM9DS1 IMU
-  imu.begin();
-
-  //  Positive magnetic declination - Sydney, AUSTRALIA
-  imu.setDeclination(12.717);
-  imu.setFusionAlgorithm(SensorFusion::MADGWICK);
-
   //  Start Serial and wait for connection
   Serial.begin(115200);
   while (!Serial);
 
-  if (imu.connected()) {
-    Serial.println("LSM9DS1 IMU Connected."); 
-
-    //  Paste your calibration bias offset HERE
-    //  This information comes from the testAndCalibrate.ino 
-    //  sketch in the library examples sub-directory.
-    imu.loadAccBias(0.070862, -0.046570, -0.016907);
-    imu.loadGyroBias(0.800018, 0.269165, -0.097198);
-    imu.loadMagBias(-0.192261, -0.012085, 0.118652);
-
-    //  This sketch assumes that the LSM9DS1 is already calibrated, 
-    //  If so, start processing IMU data. If not, run the testAndCalibrate 
-    //  sketch first.
-    imu.start();
-  } else {
-    Serial.println("LSM9DS1 IMU Not Detected.");
-    while(1);
+  if (!IMU.begin()) {
+    Serial.println("Failed to initialize BMI270 IMU!");
+    while (1);
   }
+
+  Serial.println("BMI270 IMU Connected."); 
 }
 
 void loop() {
-  //  Check for new IMU data and update angles
+  //  Check for new IMU sensor data and update angles
+  if (IMU.accelerationAvailable()) {
+    IMU.readAcceleration(data.ax, data.ay, data.az);    //  Acceleration in G's
+  }
+
+  if (IMU.gyroscopeAvailable()) {
+    IMU.readGyroscope(data.gx, data.gy, data.gz);       //  Angular rate in degrees/second
+  }
+
+  if (IMU.magneticFieldAvailable()) {
+    IMU.readMagneticField(data.mx, data.my, data.mz);   //  Magnetic Field in uT
+  }
+
+
+
   angles = imu.update();
 
   //  Display sensor data every displayPeriod, non-blocking.

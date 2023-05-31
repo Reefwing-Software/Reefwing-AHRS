@@ -4,11 +4,13 @@
  
  The Reefwing flight controller for quadcopters is based around the Arduino Nano 33 BLE board. This board includes the LSM9DS1 chip which we use as an Inertial Measurement Unit (IMU). The IMU determines the current orientation of the drone. 
 
- The Reefwing AHRS library provides an Attitude and Heading Reference System (AHRS) class for use with the Arduino Nano 33 BLE and the Nano 33 BLE SENSE boards.
+ The Reefwing AHRS library provides an Attitude and Heading Reference System (AHRS) class for use with the Arduino Nano 33 BLE, the Nano 33 BLE SENSE, and Nano 33 BLE SENSE Rev. 2 boards.
 
  The AHRS will convert the gyroscope rate and accelerometer force data to a roll and pitch angle. The yaw angle is then calculated using the pitch, roll and magnetometer data. 
 
  Version 1.1.0 of the library added the NONE option for Sensor Fusion. This option is used if you want Euler angles calculated but no sensor fusion filter applied. This release also fixed a bug in the Classic complementary filter calculation.
+
+ Version 2.2.0 added support for the Nano 33 BLE Sense Rev. 2, which uses two IMU sensors to replace the 9-axis IMU used in previous versions. It also incorporates the latest version of ```Fusion v1.0.7``` (commit [b287a9c](https://github.com/xioTechnologies/Fusion/commit/b287a9c1e11070625b4ee625ee6325fbbbadf1e3) which added ENU and NED support).
 
  ## Sensor Fusion & Free Parameters
 
@@ -82,15 +84,30 @@ The World Reference Frame is useful in flight planning or return to home failsaf
 
 Without a GPS, a drone relies on inertial navigation or dead reckoning to determine its position, velocity and orientation. It does this using an IMU to provide data to the Attitude and Heading Reference System (AHRS), which is part of the flight controller. The AHRS includes some sort of filtering or sensor fusion to deliver the most accurate roll, pitch and yaw data possible. Precision gyroscopes (e.g., ring lasers), are too expensive and bulky for drone applications and so less accurate MEMS (Micro Electrical Mechanical System) devices like the LSM9DS1 are used.
 
-## The LSM9DS1 IMU
-
-The LSM9DS1 is manufactured by STMicroelectronics (now known as ST). It has a 3D digital linear acceleration sensor, a 3D digital angular rate sensor (gyroscope), and a 3D digital magnetic sensor. It includes SPI and I2C (standard 100 kHz and fast mode 400 kHz) serial interfaces but the Arduino Nano 33 BLE uses I2C. Full details of this chip are available in the [LSM9DS1 data sheet](https://www.st.com/resource/en/datasheet/lsm9ds1.pdf).
-
 A gyroscope is a device that can measure the orientation and angular velocity of an object. Gyroscopes are more advanced than accelerometers, in that they can measure the tilt and lateral orientation, whereas an accelerometer can only measure its linear motion. Gyroscope sensors are also called “Angular Rate Sensors” or “Angular Velocity Sensors”. Angular velocity (measured in degrees per second) is the change in the rotational angle of the object per unit of time.
 
 An accelerometer is an electromechanical device used to measure acceleration forces. Such forces may be static, like the continuous force of gravity or, as with a drone accelerating, dynamic to sense movement or vibrations. Changes in the acceleration force measured in the 3-axis directions can be used to determine the orientation of a drone. Accelerometer sensors are insensitive to rotation about the earth’s gravitational field vector.
 
 A magnetometer is an instrument used for measuring magnetic forces, and in our context, the earth’s magnetism. The Earth’s magnetic field is a 3-dimensional vector that, like gravity, can be used to determine long-term orientation. The typical magnitude of the Earth’s magnetic field is between 20 µT and 70 µT.
+
+## The LSM9DS1 IMU
+
+The LSM9DS1 is manufactured by STMicroelectronics (now known as ST). It has a 3D digital linear acceleration sensor, a 3D digital angular rate sensor (gyroscope), and a 3D digital magnetic sensor. It includes SPI and I2C (standard 100 kHz and fast mode 400 kHz) serial interfaces but the Arduino Nano 33 BLE uses I2C. Full details of this chip are available in the [LSM9DS1 data sheet](https://www.st.com/resource/en/datasheet/lsm9ds1.pdf).
+
+- accelerometer: 16 bit ADC with ±2g/±4g/±8/±16g ranges available;
+- gyroscope: 16 bit ADC with ±245/±500/±2000 dps ranges.
+- magnetometer: 16 bit ADC with range of ±4/±8/±12/±16 gauss.
+
+The available IMU Output Data Rates (ODR) are 14.9, 59.5, 119, 238, 476 and 952 Hz. 
+
+## The BMI270 and BMM150 IMUs
+
+In Rev. 2 of the Nano 33 BLE SENSE, the LSM9DS1 IMU is replaced with the [BMI270](https://content.arduino.cc/assets/bmi270-ds000.pdf) and [BMM150](https://content.arduino.cc/assets/bmm150-ds001.pdf) IMUs from Bosch. The BMI270 is a 6-axis gyroscope and accelerometer.
+
+- accelerometer: 16 bit ADC with ±2g/±4g/±8g/±16g ranges available;
+- gyroscope: 16 bit ADC with ±125dps/±250dps/±500dps/±1000dps/±2000dps ranges.
+
+The BMI270 is a 3-axis magnetometer. It has a measurement range of ±1300 µt (x-, y- axis) and ±2500µT (z-axis).
 
 ## How to Use the Reefwing AHRS Library
 

@@ -5,14 +5,15 @@
   @copyright  Please see the accompanying LICENSE file.
 
   Code:        David Such
-  Version:     2.1.0
-  Date:        15/12/22
+  Version:     2.2.0
+  Date:        10/02/23
 
-  1.0.0 Original Release.           22/02/22
-  1.1.0 Added NONE fusion option.   25/05/22
-  2.0.0 Changed Repo & Branding     15/12/22
-  2.0.1 Invert Gyro Values PR       24/12/22
-  2.1.0 Updated Fusion Library      30/12/22
+  1.0.0 Original Release.                         22/02/22
+  1.1.0 Added NONE fusion option.                 25/05/22
+  2.0.0 Changed Repo & Branding                   15/12/22
+  2.0.1 Invert Gyro Values PR                     24/12/22
+  2.1.0 Updated Fusion Library                    30/12/22
+  2.2.0 Add support for Nano 33 BLE Sense Rev. 2  10/02/23
 
 ******************************************************************/
 
