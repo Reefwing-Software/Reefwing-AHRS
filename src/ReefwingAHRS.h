@@ -88,6 +88,7 @@ class ReefwingAHRS {
     void setKi(float i);
     void setFusionGain(float g);
     void setDeclination(float dec);
+    void setData(SensorData d);
 
     void updateEulerAngles(float deltaT);
     void classicUpdate();

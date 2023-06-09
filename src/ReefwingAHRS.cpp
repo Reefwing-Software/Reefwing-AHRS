@@ -176,6 +176,16 @@ void ReefwingAHRS::setDeclination(float dec) {
   _declination = dec;
 }
 
+void ReefwingAHRS::setData(SensorData d) {
+  _data = d;
+}
+
+/******************************************************************
+ *
+ * ReefwingAHRS - Update Methods 
+ * 
+ ******************************************************************/
+
 void ReefwingAHRS::classicUpdate() {
   // Convert from force vector to angle using 3 axis formula - result in radians
   float accRollAngle  =  atan(-1 * _data.ay / sqrt(pow(_data.ax, 2) + pow(_data.az, 2)));

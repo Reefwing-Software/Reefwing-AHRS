@@ -39,7 +39,8 @@ const long displayPeriod = 1000;
 unsigned long previousMillis = 0;
 
 void setup() {
-  // Initialise the LSM9DS1 IMU & AHRS
+  //  Initialise the LSM9DS1 IMU & AHRS
+  //  Use default fusion algo and parameters
   imu.begin();
   ahrs.begin();
 
