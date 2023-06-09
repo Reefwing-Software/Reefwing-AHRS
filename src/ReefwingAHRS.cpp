@@ -144,7 +144,11 @@ SensorData ReefwingAHRS::filterFormat() {
   return filterData;
 }
 
-const char* ReefwingAHRS::getBoardType() {
+BoardType ReefwingAHRS::getBoardType() {
+  return _boardType;
+}
+
+const char* ReefwingAHRS::getBoardTypeString() {
   uint8_t index = (uint8_t)_boardType;
 
   return _boardTypeStr[index];

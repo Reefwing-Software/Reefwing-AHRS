@@ -98,7 +98,8 @@ class ReefwingAHRS {
     void complementaryUpdate(float deltaT);
     
     SensorData filterFormat();
-    const char* getBoardType();
+    BoardType getBoardType();
+    const char* getBoardTypeString();
 
   private:
     long _lastUpdate;
