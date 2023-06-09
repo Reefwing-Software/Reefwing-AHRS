@@ -33,7 +33,7 @@ void setup() {
     Serial.begin(115200);
     while (!Serial);
 
-    Serial.println("Attempting to detect hardware...\n")
+    Serial.println("Attempting to detect hardware...\n");
     Serial.print("Result - ");
     Serial.println(ahrs.getBoardType());
 }

@@ -83,7 +83,7 @@ void ReefwingAHRS::begin() {
   _gyroMeasError = 40.0f * DEG_TO_RAD;   // gyroscope measurement error in rads/s (start at 40 deg/s)
   _alpha = 0.98; // default complementary filter coefficient
   _beta = sqrt(3.0f / 4.0f) * _gyroMeasError;   // compute beta
-  _Kp = 2.0f * 5.0f; // These are the free parameters in the Mahony filter and fusion scheme, Kp for proportional feedback, Ki for integral
+  _Kp = 2.0f * 5.0f; // These are the free parameters in the Mahony filter and fusion scheme, _Kp for proportional feedback, _Ki for integral
   _Ki = 0.0f;
 
   //  Set default sensor fusion algorithm
@@ -113,12 +113,12 @@ void ReefwingAHRS::update() {
       //  TODO:
     break;
     case SensorFusion::CLASSIC:
-      updateEulerAngles();
+      updateEulerAngles(deltaT);
       classicUpdate();
       tiltCompensatedYaw();
     break;
     case SensorFusion::NONE:
-      updateEulerAngles();
+      updateEulerAngles(deltaT);
       tiltCompensatedYaw();
     break;
   }
@@ -129,17 +129,17 @@ SensorData ReefwingAHRS::filterFormat() {
   //  and convert gyro to radians/sec.
   SensorData filterData;
 
-  filterData.ax = sensorData.ax;
-  filterData.ay = sensorData.ay;
-  filterData.az = sensorData.az;
+  filterData.ax = _data.ax;
+  filterData.ay = _data.ay;
+  filterData.az = _data.az;
 
-  filterData.gx = sensorData.gx * DEG_TO_RAD;
-  filterData.gy = sensorData.gy * DEG_TO_RAD;
-  filterData.gz = sensorData.gz * DEG_TO_RAD;
+  filterData.gx = _data.gx * DEG_TO_RAD;
+  filterData.gy = _data.gy * DEG_TO_RAD;
+  filterData.gz = _data.gz * DEG_TO_RAD;
 
-  filterData.mx = -sensorData.mx;
-  filterData.my = sensorData.my;
-  filterData.mz = sensorData.mz;
+  filterData.mx = -_data.mx;
+  filterData.my = _data.my;
+  filterData.mz = _data.mz;
 
   return filterData;
 }
@@ -198,30 +198,30 @@ void ReefwingAHRS::classicUpdate() {
   float accPitchAngle =  -atan(-1 * _data.ax / sqrt(pow(_data.ay, 2) + pow(_data.az, 2)));
 
   //  Combine gyro and acc angles using a complementary filter
-  eulerAngles.pitch = _alpha * eulerAngles.pitch + (1.0f - _alpha) * accPitchAngle * RAD_TO_DEG;
-  eulerAngles.roll = _alpha * eulerAngles.roll + (1.0f - _alpha) * accRollAngle * RAD_TO_DEG;
-  eulerAngles.pitchRadians = eulerAngles.pitch * DEG_TO_RAD;
-  eulerAngles.rollRadians = eulerAngles.roll * DEG_TO_RAD;
+  _angles.pitch = _alpha * _angles.pitch + (1.0f - _alpha) * accPitchAngle * RAD_TO_DEG;
+  _angles.roll = _alpha * _angles.roll + (1.0f - _alpha) * accRollAngle * RAD_TO_DEG;
+  _angles.pitchRadians = _angles.pitch * DEG_TO_RAD;
+  _angles.rollRadians = _angles.roll * DEG_TO_RAD;
 }
 
 void ReefwingAHRS::tiltCompensatedYaw() {
   //  Calculate yaw using magnetometer & derived roll and pitch
-  float mag_x_compensated = _data.mx * cos(eulerAngles.pitchRadians) + _data.mz * sin(eulerAngles.pitchRadians);
-  float mag_y_compensated = _data.mx * sin(eulerAngles.rollRadians) * sin(eulerAngles.pitchRadians) + _data.my * cos(eulerAngles.rollRadians) - _data.mz * sin(eulerAngles.rollRadians) * cos(eulerAngles.pitchRadians);
+  float mag_x_compensated = _data.mx * cos(_angles.pitchRadians) + _data.mz * sin(_angles.pitchRadians);
+  float mag_y_compensated = _data.mx * sin(_angles.rollRadians) * sin(_angles.pitchRadians) + _data.my * cos(_angles.rollRadians) - _data.mz * sin(_angles.rollRadians) * cos(_angles.pitchRadians);
 
-  eulerAngles.yawRadians = -atan2(mag_x_compensated, mag_y_compensated);
-  eulerAngles.yaw =  eulerAngles.yawRadians * RAD_TO_DEG;    //  Yaw compensated for tilt
+  _angles.yawRadians = -atan2(mag_x_compensated, mag_y_compensated);
+  _angles.yaw =  _angles.yawRadians * RAD_TO_DEG;    //  Yaw compensated for tilt
   //  float magYawAngle = atan2(_data.mx, _data.my) * RAD_TO_DEG;      //  Raw yaw from magnetometer, uncompensated for tilt - alternative yaw value
   
-  eulerAngles.heading = eulerAngles.yaw - _declination;
+  _angles.heading = _angles.yaw - _declination;
 }
 
 void ReefwingAHRS::updateEulerAngles(float deltaT) {
   // Auxiliary variables to avoid repeated arithmetic
-  float sinPHI = sin(eulerAngles.rollRadians);
-  float cosPHI = cos(eulerAngles.rollRadians);
-  float cosTHETA = cos(eulerAngles.pitchRadians);
-  float tanTHETA = tan(eulerAngles.pitchRadians);
+  float sinPHI = sin(_angles.rollRadians);
+  float cosPHI = cos(_angles.rollRadians);
+  float cosTHETA = cos(_angles.pitchRadians);
+  float tanTHETA = tan(_angles.pitchRadians);
 
   //  Convert gyro rates to Euler rates (ground reference frame)
   //  Euler Roll Rate, ϕ ̇= p + sin(ϕ)tan(θ) × q + cos(ϕ)tan(θ) × r
@@ -232,12 +232,12 @@ void ReefwingAHRS::updateEulerAngles(float deltaT) {
   float eulerPitchRate = cosPHI * _data.gx - sinPHI * _data.gz;
   float eulerYawRate = (sinPHI * _data.gx) / cosTHETA + cosPHI * cosTHETA * _data.gz;
 
-  eulerAngles.rollRadians  += eulerRollRate * deltaT;    // Angle around the X-axis
-  eulerAngles.pitchRadians += eulerPitchRate * deltaT;   // Angle around the Y-axis
-  eulerAngles.yawRadians   += eulerYawRate * deltaT;     // Angle around the Z-axis    
-  eulerAngles.roll = eulerAngles.rollRadians * RAD_TO_DEG;
-  eulerAngles.pitch = eulerAngles.pitchRadians * RAD_TO_DEG;
-  eulerAngles.yaw = eulerAngles.yawRadians * RAD_TO_DEG;
+  _angles.rollRadians  += eulerRollRate * deltaT;    // Angle around the X-axis
+  _angles.pitchRadians += eulerPitchRate * deltaT;   // Angle around the Y-axis
+  _angles.yawRadians   += eulerYawRate * deltaT;     // Angle around the Z-axis    
+  _angles.roll = _angles.rollRadians * RAD_TO_DEG;
+  _angles.pitch = _angles.pitchRadians * RAD_TO_DEG;
+  _angles.yaw = _angles.yawRadians * RAD_TO_DEG;
 }
 
 void ReefwingAHRS::complementaryUpdate(float deltaT) {
@@ -260,10 +260,10 @@ void ReefwingAHRS::complementaryUpdate(float deltaT) {
 
   //  Calculate Attitude Quaternion
   //  ref: https://ahrs.readthedocs.io/en/latest/filters/complementary.html
-  att[0] = att[0] - _halfdT * _data.gx * att[1] - _halfdT * _data.gy * att[2] - _halfdT * _data.gz * att[3];
-  att[1] = att[1] + _halfdT * _data.gx * att[0] - _halfdT * _data.gy * att[3] + _halfdT * _data.gz * att[2];
-  att[2] = att[2] + _halfdT * _data.gx * att[3] + _halfdT * _data.gy * att[0] - _halfdT * _data.gz * att[1];
-  att[3] = att[3] - _halfdT * _data.gx * att[2] + _halfdT * _data.gy * att[1] + _halfdT * _data.gz * att[0];
+  _att[0] = _att[0] - _halfdT * _data.gx * _att[1] - _halfdT * _data.gy * _att[2] - _halfdT * _data.gz * _att[3];
+  _att[1] = _att[1] + _halfdT * _data.gx * _att[0] - _halfdT * _data.gy * _att[3] + _halfdT * _data.gz * _att[2];
+  _att[2] = _att[2] + _halfdT * _data.gx * _att[3] + _halfdT * _data.gy * _att[0] - _halfdT * _data.gz * _att[1];
+  _att[3] = _att[3] - _halfdT * _data.gx * _att[2] + _halfdT * _data.gy * _att[1] + _halfdT * _data.gz * _att[0];
 
   //  Calculate Tilt Vector [bx by bz] and tilt adjusted yaw (Psi) using accelerometer data
   float bx = _data.mx * _cosTheta + _data.my * _sinTheta * _sinPhi + _data.mz * _sinTheta * _cosPhi;
@@ -285,11 +285,11 @@ void ReefwingAHRS::complementaryUpdate(float deltaT) {
   qam[2] = _cosHalfPhi * _sinHalfTheta * _cosHalfPsi + _sinHalfPhi * _cosHalfTheta * _sinHalfPsi;
   qam[3] = _cosHalfPhi * _cosHalfTheta * _sinHalfPsi - _sinHalfPsi * _sinHalfTheta * _cosHalfPsi;
 
-  //  Fuse attitude quaternion (att) with qam using complementary filter
-  _q.q0 = alpha * att[0] + (1 - alpha) * qam[0];
-  _q.q1 = alpha * att[1] + (1 - alpha) * qam[1];
-  _q.q2 = alpha * att[2] + (1 - alpha) * qam[2];
-  _q.q3 = alpha * att[3] + (1 - alpha) * qam[3];
+  //  Fuse attitude quaternion (_att) with qam using complementary filter
+  _q.q0 = _alpha * _att[0] + (1 - _alpha) * qam[0];
+  _q.q1 = _alpha * _att[1] + (1 - _alpha) * qam[1];
+  _q.q2 = _alpha * _att[2] + (1 - _alpha) * qam[2];
+  _q.q3 = _alpha * _att[3] + (1 - _alpha) * qam[3];
 }
 
 void ReefwingAHRS::madgwickUpdate(float deltaT) {
@@ -438,21 +438,21 @@ void ReefwingAHRS::mahoneyUpdate(float deltaT) {
   ex = (_data.ay * vz - _data.az * vy) + (_data.my * wz - _data.mz * wy);
   ey = (_data.az * vx - _data.ax * vz) + (_data.mz * wx - _data.mx * wz);
   ez = (_data.ax * vy - _data.ay * vx) + (_data.mx * wy - _data.my * wx);
-  if (Ki > 0.0f) {
-    eInt[0] += ex;      // accumulate integral error
-    eInt[1] += ey;
-    eInt[2] += ez;
+  if (_Ki > 0.0f) {
+    _eInt[0] += ex;      // accumulate integral error
+    _eInt[1] += ey;
+    _eInt[2] += ez;
   }
   else {
-    eInt[0] = 0.0f;     // prevent integral wind up
-    eInt[1] = 0.0f;
-    eInt[2] = 0.0f;
+    _eInt[0] = 0.0f;     // prevent integral wind up
+    _eInt[1] = 0.0f;
+    _eInt[2] = 0.0f;
   }
 
   // Apply feedback terms
-  _data.gx = _data.gx + _Kp * ex + _Ki * eInt[0];
-  _data.gy = _data.gy + _Kp * ey + _Ki * eInt[1];
-  _data.gz = _data.gz + _Kp * ez + _Ki * eInt[2];
+  _data.gx = _data.gx + _Kp * ex + _Ki * _eInt[0];
+  _data.gy = _data.gy + _Kp * ey + _Ki * _eInt[1];
+  _data.gz = _data.gz + _Kp * ez + _Ki * _eInt[2];
 
   // Integrate rate of change of quaternion
   pa = _q.q1;

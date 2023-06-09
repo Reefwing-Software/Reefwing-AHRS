@@ -104,6 +104,8 @@ class ReefwingAHRS {
     long _lastUpdate;
     float _declination;
     float _gyroMeasError, _alpha, _beta, _Kp, _Ki;   //  Sensor Fusion free parameters
+    float _eInt[3] = {0.0f, 0.0f, 0.0f};             //  Vector to hold integral error for Mahony filter
+    float _att[4] = {1.0f, 0.0f, 0.0f, 0.0f};        //  Attitude quaternion for complementary filter
 
     BoardType _boardType;
     SensorFusion _fusion;
