@@ -111,7 +111,7 @@ class ReefwingAHRS {
     SensorData _data;
     Quaternion _q;
 
-    const char* _boardTypeStr[] = {"Nano 33 BLE", "Nano 33 BLE Sense", "Nano 33 BLE Sense Rev 2", "Seeed XIAO nRF52840 Sense", "Unsupported Board Type"};
+    const char* _boardTypeStr[5];
 
 };
 

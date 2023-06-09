@@ -39,7 +39,13 @@
  * 
  ******************************************************************/
 
-ReefwingAHRS::ReefwingAHRS() { }
+ReefwingAHRS::ReefwingAHRS() { 
+  _boardTypeStr[0] = "Nano 33 BLE";
+  _boardTypeStr[1] = "Nano 33 BLE Sense";
+  _boardTypeStr[2] = "Nano 33 BLE Sense Rev 2";
+  _boardTypeStr[3] = "Seeed XIAO nRF52840 Sense";
+  _boardTypeStr[4] = "Unsupported Board Type";
+}
 
 void ReefwingAHRS::begin() {
   //  Detect Board Hardware
