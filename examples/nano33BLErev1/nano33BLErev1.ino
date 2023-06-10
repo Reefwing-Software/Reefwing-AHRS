@@ -1,8 +1,7 @@
 /******************************************************************
   @file       nano33BLErev1.ino
   @brief      Print roll, pitch, yaw and heading angles using the
-              LSM9DS1 IMU on the Nano 33 BLE or Nano 33 BLE Sense 
-              Revision 1 (rev1).
+              LSM9DS1 IMU on the Nano 33 BLE rev1
   @author     David Such
   @copyright  Please see the accompanying LICENSE file.
 
@@ -34,6 +33,8 @@
 
 ReefwingLSM9DS1 imu;
 ReefwingAHRS ahrs;
+
+EulerAngles angles;
 
 int loopFrequency = 0;
 const long displayPeriod = 1000;
@@ -71,6 +72,7 @@ void setup() {
 
 void loop() {
   imu.updateSensorData();
+  ahrs.update();
 
   if (millis() - previousMillis >= displayPeriod) {
     //  Display sensor data every displayPeriod, non-blocking.
@@ -101,6 +103,15 @@ void loop() {
     Serial.print("\tMag Z: ");
     Serial.print(imu.data.mz);
     Serial.println(" gauss\n");
+
+    Serial.print("--> Roll: ");
+    Serial.print(angles.roll);
+    Serial.print("\tPitch: ");
+    Serial.print(angles.pitch);
+    Serial.print("\tYaw: ");
+    Serial.print(angles.yaw);
+    Serial.print("\tHeading: ");
+    Serial.print(angles.heading);
 
     loopFrequency = 0;
     previousMillis = millis();
