@@ -193,6 +193,10 @@ void ReefwingAHRS::setData(SensorData d) {
   _data = d;
 }
 
+Quaternion ReefwingAHRS::getQuaternion() {
+  return _q;
+}
+
 /******************************************************************
  *
  * ReefwingAHRS - Update Methods 

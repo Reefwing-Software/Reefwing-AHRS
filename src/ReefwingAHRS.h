@@ -101,6 +101,7 @@ class ReefwingAHRS {
     BoardType getBoardType();
     const char* getBoardTypeString();
 
+    Quaternion getQuaternion();
     EulerAngles angles;
 
   private:

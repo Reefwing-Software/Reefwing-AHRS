@@ -67,6 +67,7 @@ loadAccBias KEYWORD2
 loadGyroBias    KEYWORD2
 loadMagBias KEYWORD2
 getBiasOffsets  KEYWORD2
+getQuaternion   KEYWORD2
 
 #######################################
 # Constants (LITERAL1)
