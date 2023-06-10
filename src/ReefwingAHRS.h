@@ -101,6 +101,8 @@ class ReefwingAHRS {
     BoardType getBoardType();
     const char* getBoardTypeString();
 
+    EulerAngles angles;
+
   private:
     long _lastUpdate;
     float _declination;
@@ -110,7 +112,7 @@ class ReefwingAHRS {
 
     BoardType _boardType;
     SensorFusion _fusion;
-    EulerAngles _angles;
+    
     SensorData _data;
     Quaternion _q;
 

@@ -102,12 +102,15 @@ void ReefwingAHRS::update() {
   switch(_fusion) {
     case SensorFusion::MADGWICK:
       madgwickUpdate(deltaT);
+      angles = _q.toEulerAngles(_declination);
     break;
     case SensorFusion::MAHONY:
       mahoneyUpdate(deltaT);
+      angles = _q.toEulerAngles(_declination);
     break;
     case SensorFusion::COMPLEMENTARY:
       complementaryUpdate(deltaT);
+      angles = _q.toEulerAngles(_declination);
     break;
     case SensorFusion::FUSION:
       //  TODO:
@@ -202,30 +205,30 @@ void ReefwingAHRS::classicUpdate() {
   float accPitchAngle =  -atan(-1 * _data.ax / sqrt(pow(_data.ay, 2) + pow(_data.az, 2)));
 
   //  Combine gyro and acc angles using a complementary filter
-  _angles.pitch = _alpha * _angles.pitch + (1.0f - _alpha) * accPitchAngle * RAD_TO_DEG;
-  _angles.roll = _alpha * _angles.roll + (1.0f - _alpha) * accRollAngle * RAD_TO_DEG;
-  _angles.pitchRadians = _angles.pitch * DEG_TO_RAD;
-  _angles.rollRadians = _angles.roll * DEG_TO_RAD;
+  angles.pitch = _alpha * angles.pitch + (1.0f - _alpha) * accPitchAngle * RAD_TO_DEG;
+  angles.roll = _alpha * angles.roll + (1.0f - _alpha) * accRollAngle * RAD_TO_DEG;
+  angles.pitchRadians = angles.pitch * DEG_TO_RAD;
+  angles.rollRadians = angles.roll * DEG_TO_RAD;
 }
 
 void ReefwingAHRS::tiltCompensatedYaw() {
   //  Calculate yaw using magnetometer & derived roll and pitch
-  float mag_x_compensated = _data.mx * cos(_angles.pitchRadians) + _data.mz * sin(_angles.pitchRadians);
-  float mag_y_compensated = _data.mx * sin(_angles.rollRadians) * sin(_angles.pitchRadians) + _data.my * cos(_angles.rollRadians) - _data.mz * sin(_angles.rollRadians) * cos(_angles.pitchRadians);
+  float mag_x_compensated = _data.mx * cos(angles.pitchRadians) + _data.mz * sin(angles.pitchRadians);
+  float mag_y_compensated = _data.mx * sin(angles.rollRadians) * sin(angles.pitchRadians) + _data.my * cos(angles.rollRadians) - _data.mz * sin(angles.rollRadians) * cos(angles.pitchRadians);
 
-  _angles.yawRadians = -atan2(mag_x_compensated, mag_y_compensated);
-  _angles.yaw =  _angles.yawRadians * RAD_TO_DEG;    //  Yaw compensated for tilt
+  angles.yawRadians = -atan2(mag_x_compensated, mag_y_compensated);
+  angles.yaw =  angles.yawRadians * RAD_TO_DEG;    //  Yaw compensated for tilt
   //  float magYawAngle = atan2(_data.mx, _data.my) * RAD_TO_DEG;      //  Raw yaw from magnetometer, uncompensated for tilt - alternative yaw value
   
-  _angles.heading = _angles.yaw - _declination;
+  angles.heading = angles.yaw - _declination;
 }
 
 void ReefwingAHRS::updateEulerAngles(float deltaT) {
   // Auxiliary variables to avoid repeated arithmetic
-  float sinPHI = sin(_angles.rollRadians);
-  float cosPHI = cos(_angles.rollRadians);
-  float cosTHETA = cos(_angles.pitchRadians);
-  float tanTHETA = tan(_angles.pitchRadians);
+  float sinPHI = sin(angles.rollRadians);
+  float cosPHI = cos(angles.rollRadians);
+  float cosTHETA = cos(angles.pitchRadians);
+  float tanTHETA = tan(angles.pitchRadians);
 
   //  Convert gyro rates to Euler rates (ground reference frame)
   //  Euler Roll Rate, ϕ ̇= p + sin(ϕ)tan(θ) × q + cos(ϕ)tan(θ) × r
@@ -236,12 +239,12 @@ void ReefwingAHRS::updateEulerAngles(float deltaT) {
   float eulerPitchRate = cosPHI * _data.gx - sinPHI * _data.gz;
   float eulerYawRate = (sinPHI * _data.gx) / cosTHETA + cosPHI * cosTHETA * _data.gz;
 
-  _angles.rollRadians  += eulerRollRate * deltaT;    // Angle around the X-axis
-  _angles.pitchRadians += eulerPitchRate * deltaT;   // Angle around the Y-axis
-  _angles.yawRadians   += eulerYawRate * deltaT;     // Angle around the Z-axis    
-  _angles.roll = _angles.rollRadians * RAD_TO_DEG;
-  _angles.pitch = _angles.pitchRadians * RAD_TO_DEG;
-  _angles.yaw = _angles.yawRadians * RAD_TO_DEG;
+  angles.rollRadians  += eulerRollRate * deltaT;    // Angle around the X-axis
+  angles.pitchRadians += eulerPitchRate * deltaT;   // Angle around the Y-axis
+  angles.yawRadians   += eulerYawRate * deltaT;     // Angle around the Z-axis    
+  angles.roll = angles.rollRadians * RAD_TO_DEG;
+  angles.pitch = angles.pitchRadians * RAD_TO_DEG;
+  angles.yaw = angles.yawRadians * RAD_TO_DEG;
 }
 
 void ReefwingAHRS::complementaryUpdate(float deltaT) {

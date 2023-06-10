@@ -1,7 +1,8 @@
 /******************************************************************
   @file       nano33BLErev1.ino
   @brief      Print roll, pitch, yaw and heading angles using the
-              LSM9DS1 IMU on the Nano 33 BLE rev1
+              LSM9DS1 IMU on the Nano 33 BLE or Nano 33 BLE Sense 
+              Revision 1 (rev1).
   @author     David Such
   @copyright  Please see the accompanying LICENSE file.
 
