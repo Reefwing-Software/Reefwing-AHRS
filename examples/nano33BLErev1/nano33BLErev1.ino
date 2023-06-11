@@ -51,6 +51,9 @@ void setup() {
   Serial.begin(115200);
   while (!Serial);
 
+  Serial.print("Detected Board - ");
+  Serial.println(ahrs.getBoardTypeString());
+
   if (imu.connected()) {
     Serial.println("LSM9DS1 IMU Connected."); 
     Serial.println("Calibrating IMU...\n"); 

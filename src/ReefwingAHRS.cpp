@@ -140,8 +140,6 @@ SensorData ReefwingAHRS::filterFormat() {
   filterData.gy = _data.gy * DEG_TO_RAD;
   filterData.gz = _data.gz * DEG_TO_RAD;
 
-  filterData.mx = -_data.mx;
-
   return filterData;
 }
 
@@ -223,10 +221,7 @@ void ReefwingAHRS::setData(SensorData d) {
   
   switch(_imuType) {
     case ImuType::LSM9DS1:
-      _data.az = -d.az;
-      _data.gz = -d.gz;
       _data.mx = -d.mx;
-      _data.mz = -d.mz;
     break;
     case ImuType::LSM6DS3:
     break;
