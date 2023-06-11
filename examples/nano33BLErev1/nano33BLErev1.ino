@@ -20,7 +20,7 @@
   CLASSIC and COMPLEMENTARY Sensor Fusion options. Set the 
   algorithm that you wish to use with:
 
-  imu.setFusionAlgorithm(SensorFusion::MADGWICK);
+  ahrs.setFusionAlgorithm(SensorFusion::MADGWICK);
 
   If you want to test the FUSION (Madgwick v2) algoritm, then use
   the fusionAHRS example sketch or add the FUSION specific
@@ -43,6 +43,9 @@ void setup() {
   //  Use default fusion algo and parameters
   imu.begin();
   ahrs.begin();
+  
+  ahrs.setFusionAlgorithm(SensorFusion::MADGWICK);
+  ahrs.setDeclination(12.717);                      //  Sydney, Australia
 
   //  Start Serial and wait for connection
   Serial.begin(115200);
