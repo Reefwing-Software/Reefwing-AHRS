@@ -34,8 +34,6 @@
 ReefwingLSM9DS1 imu;
 ReefwingAHRS ahrs;
 
-EulerAngles angles;
-
 int loopFrequency = 0;
 const long displayPeriod = 1000;
 unsigned long previousMillis = 0;
@@ -52,7 +50,7 @@ void setup() {
 
   if (imu.connected()) {
     Serial.println("LSM9DS1 IMU Connected."); 
-
+    Serial.println("Calibrating IMU...\n"); 
     imu.start();
     imu.calibrateGyro();
     imu.calibrateAccel();
@@ -72,46 +70,22 @@ void setup() {
 
 void loop() {
   imu.updateSensorData();
+  ahrs.setData(imu.data);
   ahrs.update();
 
   if (millis() - previousMillis >= displayPeriod) {
     //  Display sensor data every displayPeriod, non-blocking.
-    Serial.print("Gyro X: ");
-    Serial.print(imu.data.gx);
-    Serial.print("\tGyro Y: ");
-    Serial.print(imu.data.gy);
-    Serial.print("\tGyro Z: ");
-    Serial.print(imu.data.gz);
-    Serial.print(" DPS");
-  
+    Serial.print("--> Roll: ");
+    Serial.print(ahrs.angles.roll);
+    Serial.print("\tPitch: ");
+    Serial.print(ahrs.angles.pitch);
+    Serial.print("\tYaw: ");
+    Serial.print(ahrs.angles.yaw);
+    Serial.print("\tHeading: ");
+    Serial.print(ahrs.angles.heading);
     Serial.print("\tLoop Frequency: ");
     Serial.print(loopFrequency);
     Serial.println(" Hz");
-
-    Serial.print("Accel X: ");
-    Serial.print(imu.data.ax);
-    Serial.print("\tAccel Y: ");
-    Serial.print(imu.data.ay);
-    Serial.print("\tAccel Z: ");
-    Serial.print(imu.data.az);
-    Serial.println(" G'S");
-
-    Serial.print("Mag X: ");
-    Serial.print(imu.data.mx);
-    Serial.print("\tMag Y: ");
-    Serial.print(imu.data.my);
-    Serial.print("\tMag Z: ");
-    Serial.print(imu.data.mz);
-    Serial.println(" gauss\n");
-
-    Serial.print("--> Roll: ");
-    Serial.print(angles.roll);
-    Serial.print("\tPitch: ");
-    Serial.print(angles.pitch);
-    Serial.print("\tYaw: ");
-    Serial.print(angles.yaw);
-    Serial.print("\tHeading: ");
-    Serial.print(angles.heading);
 
     loopFrequency = 0;
     previousMillis = millis();
