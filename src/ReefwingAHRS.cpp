@@ -101,15 +101,15 @@ void ReefwingAHRS::update() {
 
   switch(_fusion) {
     case SensorFusion::MADGWICK:
-      madgwickUpdate(deltaT);
+      madgwickUpdate(filterFormat(), deltaT);
       angles = _q.toEulerAngles(_declination);
     break;
     case SensorFusion::MAHONY:
-      mahoneyUpdate(deltaT);
+      mahoneyUpdate(filterFormat(), deltaT);
       angles = _q.toEulerAngles(_declination);
     break;
     case SensorFusion::COMPLEMENTARY:
-      complementaryUpdate(deltaT);
+      complementaryUpdate(filterFormat(), deltaT);
       angles = _q.toEulerAngles(_declination);
     break;
     case SensorFusion::FUSION:
@@ -130,19 +130,13 @@ void ReefwingAHRS::update() {
 SensorData ReefwingAHRS::filterFormat() {
   //  Correct LSM9DS1 magnetometer x-axis mismatch
   //  and convert gyro to radians/sec.
-  SensorData filterData;
-
-  filterData.ax = _data.ax;
-  filterData.ay = _data.ay;
-  filterData.az = _data.az;
+  SensorData filterData = _data;
 
   filterData.gx = _data.gx * DEG_TO_RAD;
   filterData.gy = _data.gy * DEG_TO_RAD;
   filterData.gz = _data.gz * DEG_TO_RAD;
 
   filterData.mx = -_data.mx;
-  filterData.my = _data.my;
-  filterData.mz = _data.mz;
 
   return filterData;
 }
@@ -251,10 +245,10 @@ void ReefwingAHRS::updateEulerAngles(float deltaT) {
   angles.yaw = angles.yawRadians * RAD_TO_DEG;
 }
 
-void ReefwingAHRS::complementaryUpdate(float deltaT) {
+void ReefwingAHRS::complementaryUpdate(SensorData d, float deltaT) {
   //  Roll (Theta) and Pitch (Phi) from accelerometer
-  float rollAcc = atan2(_data.ay, _data.az);
-  float pitchAcc = atan2(-_data.ax, sqrt(pow(_data.ay, 2) + pow(_data.az, 2)));
+  float rollAcc = atan2(d.ay, d.az);
+  float pitchAcc = atan2(-d.ax, sqrt(pow(d.ay, 2) + pow(d.az, 2)));
 
   // Auxiliary variables to avoid repeated arithmetic
   float _halfdT = deltaT * 0.5f;
@@ -271,15 +265,15 @@ void ReefwingAHRS::complementaryUpdate(float deltaT) {
 
   //  Calculate Attitude Quaternion
   //  ref: https://ahrs.readthedocs.io/en/latest/filters/complementary.html
-  _att[0] = _att[0] - _halfdT * _data.gx * _att[1] - _halfdT * _data.gy * _att[2] - _halfdT * _data.gz * _att[3];
-  _att[1] = _att[1] + _halfdT * _data.gx * _att[0] - _halfdT * _data.gy * _att[3] + _halfdT * _data.gz * _att[2];
-  _att[2] = _att[2] + _halfdT * _data.gx * _att[3] + _halfdT * _data.gy * _att[0] - _halfdT * _data.gz * _att[1];
-  _att[3] = _att[3] - _halfdT * _data.gx * _att[2] + _halfdT * _data.gy * _att[1] + _halfdT * _data.gz * _att[0];
+  _att[0] = _att[0] - _halfdT * d.gx * _att[1] - _halfdT * d.gy * _att[2] - _halfdT * d.gz * _att[3];
+  _att[1] = _att[1] + _halfdT * d.gx * _att[0] - _halfdT * d.gy * _att[3] + _halfdT * d.gz * _att[2];
+  _att[2] = _att[2] + _halfdT * d.gx * _att[3] + _halfdT * d.gy * _att[0] - _halfdT * d.gz * _att[1];
+  _att[3] = _att[3] - _halfdT * d.gx * _att[2] + _halfdT * d.gy * _att[1] + _halfdT * d.gz * _att[0];
 
   //  Calculate Tilt Vector [bx by bz] and tilt adjusted yaw (Psi) using accelerometer data
-  float bx = _data.mx * _cosTheta + _data.my * _sinTheta * _sinPhi + _data.mz * _sinTheta * _cosPhi;
-  float by = _data.my * _cosPhi - _data.mz * _sinPhi;
-  float bz = -_data.mx * _sinTheta + _data.my * _cosTheta * _sinPhi + _data.mz * _cosTheta * _cosPhi;
+  float bx = d.mx * _cosTheta + d.my * _sinTheta * _sinPhi + d.mz * _sinTheta * _cosPhi;
+  float by = d.my * _cosPhi - d.mz * _sinPhi;
+  float bz = -d.mx * _sinTheta + d.my * _cosTheta * _sinPhi + d.mz * _cosTheta * _cosPhi;
 
   float yaw = atan2(-by, bx);
 
@@ -303,7 +297,7 @@ void ReefwingAHRS::complementaryUpdate(float deltaT) {
   _q.q3 = _alpha * _att[3] + (1 - _alpha) * qam[3];
 }
 
-void ReefwingAHRS::madgwickUpdate(float deltaT) {
+void ReefwingAHRS::madgwickUpdate(SensorData d, float deltaT) {
   float norm;
   float hx, hy, _2bx, _2bz;
   float s0, s1, s2, s3;
@@ -334,39 +328,39 @@ void ReefwingAHRS::madgwickUpdate(float deltaT) {
   float q3q3 = _q.q3 * _q.q3;
 
   // Normalise accelerometer measurement
-  norm = sqrt(_data.ax * _data.ax + _data.ay * _data.ay + _data.az * _data.az);
+  norm = sqrt(d.ax * d.ax + d.ay * d.ay + d.az * d.az);
   if (norm == 0.0f) return; // handle NaN
   norm = 1.0f/norm;
-  _data.ax *= norm;
-  _data.ay *= norm;
-  _data.az *= norm;
+  d.ax *= norm;
+  d.ay *= norm;
+  d.az *= norm;
 
   // Normalise magnetometer measurement
-  norm = sqrt(_data.mx * _data.mx + _data.my * _data.my + _data.mz * _data.mz);
+  norm = sqrt(d.mx * d.mx + d.my * d.my + d.mz * d.mz);
   if (norm == 0.0f) return; // handle NaN
   norm = 1.0f/norm;
-  _data.mx *= norm;
-  _data.my *= norm;
-  _data.mz *= norm;
+  d.mx *= norm;
+  d.my *= norm;
+  d.mz *= norm;
 
   // Reference direction of Earth's magnetic field
-  _2q0mx = 2.0f * _q.q0 * _data.mx;
-  _2q0my = 2.0f * _q.q0 * _data.my;
-  _2q0mz = 2.0f * _q.q0 * _data.mz;
-  _2q1mx = 2.0f * _q.q1 * _data.mx;
+  _2q0mx = 2.0f * _q.q0 * d.mx;
+  _2q0my = 2.0f * _q.q0 * d.my;
+  _2q0mz = 2.0f * _q.q0 * d.mz;
+  _2q1mx = 2.0f * _q.q1 * d.mx;
 
-  hx = _data.mx * q0q0 - _2q0my * _q.q3 + _2q0mz * _q.q2 + _data.mx * q1q1 + _2q1 * _data.my * _q.q2 + _2q1 * _data.mz * _q.q3 - _data.mx * q2q2 - _data.mx * q3q3;
-  hy = _2q0mx * _q.q3 + _data.my * q0q0 - _2q0mz * _q.q1 + _2q1mx * _q.q2 - _data.my * q1q1 + _data.my * q2q2 + _2q2 * _data.mz * _q.q3 - _data.my * q3q3;
+  hx = d.mx * q0q0 - _2q0my * _q.q3 + _2q0mz * _q.q2 + d.mx * q1q1 + _2q1 * d.my * _q.q2 + _2q1 * d.mz * _q.q3 - d.mx * q2q2 - d.mx * q3q3;
+  hy = _2q0mx * _q.q3 + d.my * q0q0 - _2q0mz * _q.q1 + _2q1mx * _q.q2 - d.my * q1q1 + d.my * q2q2 + _2q2 * d.mz * _q.q3 - d.my * q3q3;
   _2bx = sqrt(hx * hx + hy * hy);
-  _2bz = -_2q0mx * _q.q2 + _2q0my * _q.q1 + _data.mz * q0q0 + _2q1mx * _q.q3 - _data.mz * q1q1 + _2q2 * _data.my * _q.q3 - _data.mz * q2q2 + _data.mz * q3q3;
+  _2bz = -_2q0mx * _q.q2 + _2q0my * _q.q1 + d.mz * q0q0 + _2q1mx * _q.q3 - d.mz * q1q1 + _2q2 * d.my * _q.q3 - d.mz * q2q2 + d.mz * q3q3;
   _4bx = 2.0f * _2bx;
   _4bz = 2.0f * _2bz;
 
   // Gradient decent algorithm corrective step
-  s0 = -_2q2 * (2.0f * q1q3 - _2q0q2 - _data.ax) + _2q1 * (2.0f * q0q1 + _2q2q3 - _data.ay) - _2bz * _q.q2 * (_2bx * (0.5f - q2q2 - q3q3) + _2bz * (q1q3 - q0q2) - _data.mx) + (-_2bx * _q.q3 + _2bz * _q.q1) * (_2bx * (q1q2 - q0q3) + _2bz * (q0q1 + q2q3) - _data.my) + _2bx * _q.q2 * (_2bx * (q0q2 + q1q3) + _2bz * (0.5f - q1q1 - q2q2) - _data.mz);
-  s1 = _2q3 * (2.0f * q1q3 - _2q0q2 - _data.ax) + _2q0 * (2.0f * q0q1 + _2q2q3 - _data.ay) - 4.0f * _q.q1 * (1.0f - 2.0f * q1q1 - 2.0f * q2q2 - _data.az) + _2bz * _q.q3 * (_2bx * (0.5f - q2q2 - q3q3) + _2bz * (q1q3 - q0q2) - _data.mx) + (_2bx * _q.q2 + _2bz * _q.q0) * (_2bx * (q1q2 - q0q3) + _2bz * (q0q1 + q2q3) - _data.my) + (_2bx * _q.q3 - _4bz * _q.q1) * (_2bx * (q0q2 + q1q3) + _2bz * (0.5f - q1q1 - q2q2) - _data.mz);
-  s2 = -_2q0 * (2.0f * q1q3 - _2q0q2 - _data.ax) + _2q3 * (2.0f * q0q1 + _2q2q3 - _data.ay) - 4.0f * _q.q2 * (1.0f - 2.0f * q1q1 - 2.0f * q2q2 - _data.az) + (-_4bx * _q.q2 - _2bz * _q.q0) * (_2bx * (0.5f - q2q2 - q3q3) + _2bz * (q1q3 - q0q2) - _data.mx) + (_2bx * _q.q1 + _2bz * _q.q3) * (_2bx * (q1q2 - q0q3) + _2bz * (q0q1 + q2q3) - _data.my) + (_2bx * _q.q0 - _4bz * _q.q2) * (_2bx * (q0q2 + q1q3) + _2bz * (0.5f - q1q1 - q2q2) - _data.mz);
-  s3 = _2q1 * (2.0f * q1q3 - _2q0q2 - _data.ax) + _2q2 * (2.0f * q0q1 + _2q2q3 - _data.ay) + (-_4bx * _q.q3 + _2bz * _q.q1) * (_2bx * (0.5f - q2q2 - q3q3) + _2bz * (q1q3 - q0q2) - _data.mx) + (-_2bx * _q.q0 + _2bz * _q.q2) * (_2bx * (q1q2 - q0q3) + _2bz * (q0q1 + q2q3) - _data.my) + _2bx * _q.q1 * (_2bx * (q0q2 + q1q3) + _2bz * (0.5f - q1q1 - q2q2) - _data.mz);
+  s0 = -_2q2 * (2.0f * q1q3 - _2q0q2 - d.ax) + _2q1 * (2.0f * q0q1 + _2q2q3 - d.ay) - _2bz * _q.q2 * (_2bx * (0.5f - q2q2 - q3q3) + _2bz * (q1q3 - q0q2) - d.mx) + (-_2bx * _q.q3 + _2bz * _q.q1) * (_2bx * (q1q2 - q0q3) + _2bz * (q0q1 + q2q3) - d.my) + _2bx * _q.q2 * (_2bx * (q0q2 + q1q3) + _2bz * (0.5f - q1q1 - q2q2) - d.mz);
+  s1 = _2q3 * (2.0f * q1q3 - _2q0q2 - d.ax) + _2q0 * (2.0f * q0q1 + _2q2q3 - d.ay) - 4.0f * _q.q1 * (1.0f - 2.0f * q1q1 - 2.0f * q2q2 - d.az) + _2bz * _q.q3 * (_2bx * (0.5f - q2q2 - q3q3) + _2bz * (q1q3 - q0q2) - d.mx) + (_2bx * _q.q2 + _2bz * _q.q0) * (_2bx * (q1q2 - q0q3) + _2bz * (q0q1 + q2q3) - d.my) + (_2bx * _q.q3 - _4bz * _q.q1) * (_2bx * (q0q2 + q1q3) + _2bz * (0.5f - q1q1 - q2q2) - d.mz);
+  s2 = -_2q0 * (2.0f * q1q3 - _2q0q2 - d.ax) + _2q3 * (2.0f * q0q1 + _2q2q3 - d.ay) - 4.0f * _q.q2 * (1.0f - 2.0f * q1q1 - 2.0f * q2q2 - d.az) + (-_4bx * _q.q2 - _2bz * _q.q0) * (_2bx * (0.5f - q2q2 - q3q3) + _2bz * (q1q3 - q0q2) - d.mx) + (_2bx * _q.q1 + _2bz * _q.q3) * (_2bx * (q1q2 - q0q3) + _2bz * (q0q1 + q2q3) - d.my) + (_2bx * _q.q0 - _4bz * _q.q2) * (_2bx * (q0q2 + q1q3) + _2bz * (0.5f - q1q1 - q2q2) - d.mz);
+  s3 = _2q1 * (2.0f * q1q3 - _2q0q2 - d.ax) + _2q2 * (2.0f * q0q1 + _2q2q3 - d.ay) + (-_4bx * _q.q3 + _2bz * _q.q1) * (_2bx * (0.5f - q2q2 - q3q3) + _2bz * (q1q3 - q0q2) - d.mx) + (-_2bx * _q.q0 + _2bz * _q.q2) * (_2bx * (q1q2 - q0q3) + _2bz * (q0q1 + q2q3) - d.my) + _2bx * _q.q1 * (_2bx * (q0q2 + q1q3) + _2bz * (0.5f - q1q1 - q2q2) - d.mz);
   
   norm = sqrt(s0 * s0 + s1 * s1 + s2 * s2 + s3 * s3);    // normalise step magnitude
   norm = 1.0f/norm;
@@ -376,10 +370,10 @@ void ReefwingAHRS::madgwickUpdate(float deltaT) {
   s3 *= norm;
 
   // Compute rate of change of quaternion
-  qDot0 = 0.5f * (-_q.q1 * _data.gx - _q.q2 * _data.gy - _q.q3 * _data.gz) - _beta * s0;
-  qDot1 = 0.5f * (_q.q0 * _data.gx + _q.q2 * _data.gz - _q.q3 * _data.gy) - _beta * s1;
-  qDot2 = 0.5f * (_q.q0 * _data.gy - _q.q1 * _data.gz + _q.q3 * _data.gx) - _beta * s2;
-  qDot3 = 0.5f * (_q.q0 * _data.gz + _q.q1 * _data.gy - _q.q2 * _data.gx) - _beta * s3;
+  qDot0 = 0.5f * (-_q.q1 * d.gx - _q.q2 * d.gy - _q.q3 * d.gz) - _beta * s0;
+  qDot1 = 0.5f * (_q.q0 * d.gx + _q.q2 * d.gz - _q.q3 * d.gy) - _beta * s1;
+  qDot2 = 0.5f * (_q.q0 * d.gy - _q.q1 * d.gz + _q.q3 * d.gx) - _beta * s2;
+  qDot3 = 0.5f * (_q.q0 * d.gz + _q.q1 * d.gy - _q.q2 * d.gx) - _beta * s3;
 
   // Integrate to yield quaternion
   _q.q0 += qDot0 * deltaT;
@@ -396,7 +390,7 @@ void ReefwingAHRS::madgwickUpdate(float deltaT) {
   _q.q3 = _q.q3 * norm;
 }
 
-void ReefwingAHRS::mahoneyUpdate(float deltaT) {
+void ReefwingAHRS::mahoneyUpdate(SensorData d, float deltaT) {
   float norm;
   float hx, hy, bx, bz;
   float vx, vy, vz, wx, wy, wz;
@@ -416,26 +410,26 @@ void ReefwingAHRS::mahoneyUpdate(float deltaT) {
   float q3q3 = _q.q3 * _q.q3;   
 
   // Normalise accelerometer measurement
-  norm = sqrtf(_data.ax * _data.ax + _data.ay * _data.ay + _data.az * _data.az);
+  norm = sqrtf(d.ax * d.ax + d.ay * d.ay + d.az * d.az);
   if (norm == 0.0f) return; // handle NaN
   norm = 1.0f / norm;        // use reciprocal for division
-  _data.ax *= norm;
-  _data.ay *= norm;
-  _data.az *= norm;
+  d.ax *= norm;
+  d.ay *= norm;
+  d.az *= norm;
 
   // Normalise magnetometer measurement
-  norm = sqrtf(_data.mx * _data.mx + _data.my * _data.my + _data.mz * _data.mz);
+  norm = sqrtf(d.mx * d.mx + d.my * d.my + d.mz * d.mz);
   if (norm == 0.0f) return; // handle NaN
   norm = 1.0f / norm;        // use reciprocal for division
-  _data.mx *= norm;
-  _data.my *= norm;
-  _data.mz *= norm;
+  d.mx *= norm;
+  d.my *= norm;
+  d.mz *= norm;
 
   // Reference direction of Earth's magnetic field
-  hx = 2.0f * _data.mx * (0.5f - q2q2 - q3q3) + 2.0f * _data.my * (q1q2 - q0q3) + 2.0f * _data.mz * (q1q3 + q0q2);
-  hy = 2.0f * _data.mx * (q1q2 + q0q3) + 2.0f * _data.my * (0.5f - q1q1 - q3q3) + 2.0f * _data.mz * (q2q3 - q0q1);
+  hx = 2.0f * d.mx * (0.5f - q2q2 - q3q3) + 2.0f * d.my * (q1q2 - q0q3) + 2.0f * d.mz * (q1q3 + q0q2);
+  hy = 2.0f * d.mx * (q1q2 + q0q3) + 2.0f * d.my * (0.5f - q1q1 - q3q3) + 2.0f * d.mz * (q2q3 - q0q1);
   bx = sqrtf((hx * hx) + (hy * hy));
-  bz = 2.0f * _data.mx * (q1q3 - q0q2) + 2.0f * _data.my * (q2q3 + q0q1) + 2.0f * _data.mz * (0.5f - q1q1 - q2q2);
+  bz = 2.0f * d.mx * (q1q3 - q0q2) + 2.0f * d.my * (q2q3 + q0q1) + 2.0f * d.mz * (0.5f - q1q1 - q2q2);
 
   // Estimated direction of gravity and magnetic field
   vx = 2.0f * (q1q3 - q0q2);
@@ -446,9 +440,9 @@ void ReefwingAHRS::mahoneyUpdate(float deltaT) {
   wz = 2.0f * bx * (q0q2 + q1q3) + 2.0f * bz * (0.5f - q1q1 - q2q2);  
 
   // Error is cross product between estimated direction and measured direction of gravity
-  ex = (_data.ay * vz - _data.az * vy) + (_data.my * wz - _data.mz * wy);
-  ey = (_data.az * vx - _data.ax * vz) + (_data.mz * wx - _data.mx * wz);
-  ez = (_data.ax * vy - _data.ay * vx) + (_data.mx * wy - _data.my * wx);
+  ex = (d.ay * vz - d.az * vy) + (d.my * wz - d.mz * wy);
+  ey = (d.az * vx - d.ax * vz) + (d.mz * wx - d.mx * wz);
+  ez = (d.ax * vy - d.ay * vx) + (d.mx * wy - d.my * wx);
   if (_Ki > 0.0f) {
     _eInt[0] += ex;      // accumulate integral error
     _eInt[1] += ey;
@@ -461,18 +455,18 @@ void ReefwingAHRS::mahoneyUpdate(float deltaT) {
   }
 
   // Apply feedback terms
-  _data.gx = _data.gx + _Kp * ex + _Ki * _eInt[0];
-  _data.gy = _data.gy + _Kp * ey + _Ki * _eInt[1];
-  _data.gz = _data.gz + _Kp * ez + _Ki * _eInt[2];
+  d.gx = d.gx + _Kp * ex + _Ki * _eInt[0];
+  d.gy = d.gy + _Kp * ey + _Ki * _eInt[1];
+  d.gz = d.gz + _Kp * ez + _Ki * _eInt[2];
 
   // Integrate rate of change of quaternion
   pa = _q.q1;
   pb = _q.q2;
   pc = _q.q3;
-  _q.q0 = _q.q0 + (-_q.q1 * _data.gx - _q.q2 * _data.gy - _q.q3 * _data.gz) * (0.5f * deltaT);
-  _q.q1 = pa + (_q.q0 * _data.gx + pb * _data.gz - pc * _data.gy) * (0.5f * deltaT);
-  _q.q2 = pb + (_q.q0 * _data.gy - pa * _data.gz + pc * _data.gx) * (0.5f * deltaT);
-  _q.q3 = pc + (_q.q0 * _data.gz + pa * _data.gy - pb * _data.gx) * (0.5f * deltaT);
+  _q.q0 = _q.q0 + (-_q.q1 * d.gx - _q.q2 * d.gy - _q.q3 * d.gz) * (0.5f * deltaT);
+  _q.q1 = pa + (_q.q0 * d.gx + pb * d.gz - pc * d.gy) * (0.5f * deltaT);
+  _q.q2 = pb + (_q.q0 * d.gy - pa * d.gz + pc * d.gx) * (0.5f * deltaT);
+  _q.q3 = pc + (_q.q0 * d.gz + pa * d.gy - pb * d.gx) * (0.5f * deltaT);
 
   // Normalise quaternion
   norm = sqrtf(_q.q0 * _q.q0 + _q.q1 * _q.q1 + _q.q2 * _q.q2 + _q.q3 * _q.q3);

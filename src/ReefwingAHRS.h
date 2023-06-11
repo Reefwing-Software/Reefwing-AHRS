@@ -93,9 +93,9 @@ class ReefwingAHRS {
     void updateEulerAngles(float deltaT);
     void classicUpdate();
     void tiltCompensatedYaw();
-    void madgwickUpdate(float deltaT); 
-    void mahoneyUpdate(float deltaT);
-    void complementaryUpdate(float deltaT);
+    void madgwickUpdate(SensorData d, float deltaT); 
+    void mahoneyUpdate(SensorData d, float deltaT);
+    void complementaryUpdate(SensorData d, float deltaT);
     
     SensorData filterFormat();
     BoardType getBoardType();
@@ -114,8 +114,8 @@ class ReefwingAHRS {
     BoardType _boardType;
     SensorFusion _fusion;
     
-    SensorData _data;
-    Quaternion _q;
+    SensorData _data;   //  Sensor Data: gyro - DPS, accel - g's, mag - gauss
+    Quaternion _q;      //  Quaternion used for AHRS update
 
     const char* _boardTypeStr[5];
 
