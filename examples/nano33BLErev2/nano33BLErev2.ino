@@ -1,7 +1,7 @@
 /******************************************************************
   @file       nano33BLErev2.ino
   @brief      Print roll, pitch, yaw and heading angles using the
-              BMI270/BMM150 IMUs on the Nano 33 BLE rev2
+              BMI270/BMM150 IMUs on the Nano 33 BLE Sense rev2.
   @author     David Such
   @copyright  Please see the accompanying LICENSE file.
 
@@ -16,22 +16,18 @@
   2.1.0 Updated Fusion Library                    30/12/22
   2.2.0 Add support for Nano 33 BLE Sense Rev. 2  10/02/23
 
-  This sketch is congigured to work with the MADGWICK, MAHONY,
+  This sketch is configured to work with the MADGWICK, MAHONY,
   CLASSIC and COMPLEMENTARY Sensor Fusion options. Set the 
   algorithm that you wish to use with:
 
   imu.setFusionAlgorithm(SensorFusion::MADGWICK);
-
-  If you want to test the FUSION (Madgwick v2) algoritm, then use
-  the fusionAHRS example sketch or add the FUSION specific
-  configuration to this sketch.
 
 ******************************************************************/
 
 #include <ReefwingAHRS.h>
 #include <Arduino_BMI270_BMM150.h>
 
-EulerAngles angles;
+ReefwingAHRS ahrs;
 SensorData data;
 
 int loopFrequency = 0;
@@ -39,59 +35,62 @@ const long displayPeriod = 1000;
 unsigned long previousMillis = 0;
 
 void setup() {
+  //  Initialise the AHRS
+  //  Use default fusion algo and parameters
+  ahrs.begin();
+  
+  ahrs.setFusionAlgorithm(SensorFusion::MADGWICK);
+  ahrs.setDeclination(12.717);                      //  Sydney, Australia
+
   //  Start Serial and wait for connection
   Serial.begin(115200);
   while (!Serial);
 
-  if (!IMU.begin()) {
-    Serial.println("Failed to initialize BMI270 IMU!");
-    while (1);
-  }
+  Serial.print("Detected Board - ");
+  Serial.println(ahrs.getBoardTypeString());
 
-  Serial.println("BMI270 IMU Connected."); 
+  if (IMU.begin() && ahrs.getBoardType() == BoardType::NANO33BLE_SENSE_R2) {
+    Serial.println("BMI270 & BMM150 IMUs Connected."); 
+    Serial.print("Gyroscope sample rate = ");
+    Serial.print(IMU.gyroscopeSampleRate());
+    Serial.println(" Hz");
+    Serial.println();
+    Serial.println("Gyroscope in degrees/second");
+    Serial.print("Accelerometer sample rate = ");
+    Serial.print(IMU.accelerationSampleRate());
+    Serial.println(" Hz");
+    Serial.println();
+    Serial.println("Acceleration in G's");
+    Serial.print("Magnetic field sample rate = ");
+    Serial.print(IMU.magneticFieldSampleRate());
+    Serial.println(" uT");
+    Serial.println();
+    Serial.println("Magnetic Field in uT");
+  } 
+  else {
+    Serial.println("BMI270 & BMM150 IMUs Not Detected.");
+    while(1);
+  }
 }
 
 void loop() {
-  //  Check for new IMU sensor data and update angles
-  if (IMU.accelerationAvailable()) {
-    IMU.readAcceleration(data.ax, data.ay, data.az);    //  Acceleration in G's
-  }
+  if (IMU.gyroscopeAvailable()) {  IMU.readGyroscope(data.gx, data.gy, data.gz);  }
+  if (IMU.accelerationAvailable()) {  IMU.readAcceleration(data.ax, data.ay, data.az);  }
+  if (IMU.magneticFieldAvailable()) {  IMU.readMagneticField(data.mx, data.my, data.mz);  }
 
-  if (IMU.gyroscopeAvailable()) {
-    IMU.readGyroscope(data.gx, data.gy, data.gz);       //  Angular rate in degrees/second
-  }
+  ahrs.setData(data);
+  ahrs.update();
 
-  if (IMU.magneticFieldAvailable()) {
-    IMU.readMagneticField(data.mx, data.my, data.mz);   //  Magnetic Field in uT
-  }
-
-
-
-  angles = imu.update();
-
-  //  Display sensor data every displayPeriod, non-blocking.
   if (millis() - previousMillis >= displayPeriod) {
-
-    //  Uncomment to DEBUG raw sensor data:
-    //  SensorData data = imu.rawData();
-    //  Serial.print("ax = "); Serial.print(1000*data.ax);  
-    //  Serial.print(" ay = "); Serial.print(1000*data.ay); 
-    //  Serial.print(" az = "); Serial.print(1000*data.az); Serial.println(" mg");
-    //  Serial.print("gx = "); Serial.print( data.gx, 2); 
-    //  Serial.print(" gy = "); Serial.print( data.gy, 2); 
-    //  Serial.print(" gz = "); Serial.print( data.gz, 2); Serial.println(" deg/s");
-    //  Serial.print("mx = "); Serial.print(1000*data.mx ); 
-    //  Serial.print(" my = "); Serial.print(1000*data.my ); 
-    //  Serial.print(" mz = "); Serial.print(1000*data.mz ); Serial.println(" mG");
-      
-    Serial.print("Roll: ");
-    Serial.print(angles.roll);
+    //  Display sensor data every displayPeriod, non-blocking.
+    Serial.print("--> Roll: ");
+    Serial.print(ahrs.angles.roll);
     Serial.print("\tPitch: ");
-    Serial.print(angles.pitch);
+    Serial.print(ahrs.angles.pitch);
     Serial.print("\tYaw: ");
-    Serial.print(angles.yaw);
+    Serial.print(ahrs.angles.yaw);
     Serial.print("\tHeading: ");
-    Serial.print(angles.heading);
+    Serial.print(ahrs.angles.heading);
     Serial.print("\tLoop Frequency: ");
     Serial.print(loopFrequency);
     Serial.println(" Hz");

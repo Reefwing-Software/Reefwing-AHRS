@@ -1,7 +1,7 @@
 /******************************************************************
   @file       nano33BLErev1.ino
   @brief      Print roll, pitch, yaw and heading angles using the
-              LSM9DS1 IMU on the Nano 33 BLE rev1
+              LSM9DS1 IMU on the Nano 33 BLE & Sense rev1
   @author     David Such
   @copyright  Please see the accompanying LICENSE file.
 
@@ -16,15 +16,11 @@
   2.1.0 Updated Fusion Library                    30/12/22
   2.2.0 Add support for Nano 33 BLE Sense Rev. 2  10/02/23
 
-  This sketch is congigured to work with the MADGWICK, MAHONY,
+  This sketch is configured to work with the MADGWICK, MAHONY,
   CLASSIC and COMPLEMENTARY Sensor Fusion options. Set the 
   algorithm that you wish to use with:
 
   ahrs.setFusionAlgorithm(SensorFusion::MADGWICK);
-
-  If you want to test the FUSION (Madgwick v2) algoritm, then use
-  the fusionAHRS example sketch or add the FUSION specific
-  configuration to this sketch.
 
 ******************************************************************/
 
@@ -68,7 +64,8 @@ void setup() {
     imu.readGyro();
     imu.readAccel();
     imu.readMag();
-  } else {
+  } 
+  else {
     Serial.println("LSM9DS1 IMU Not Detected.");
     while(1);
   }
