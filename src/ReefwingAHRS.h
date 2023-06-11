@@ -112,7 +112,7 @@ class ReefwingAHRS {
 
     void formatAnglesForConfigurator();
     Quaternion getQuaternion();
-    EulerAngles angles;
+    EulerAngles angles, configAngles;
 
   private:
     long _lastUpdate;

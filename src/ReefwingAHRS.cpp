@@ -144,23 +144,26 @@ SensorData ReefwingAHRS::filterFormat() {
 }
 
 void ReefwingAHRS::formatAnglesForConfigurator() {
-  //  
+  //  Adjust angle signs for consistent display
+  //  in the Reefwing Configurator
+  configAngles = angles;
+  
   switch(_fusion) {
     case SensorFusion::MADGWICK:
-      angles.roll = -angles.roll;
-      angles.pitch = -angles.pitch;
-      angles.pitchRadians = -angles.pitchRadians;
-      angles.rollRadians = -angles.rollRadians;
+      configAngles.roll = -angles.roll;
+      configAngles.pitch = -angles.pitch;
+      configAngles.pitchRadians = -angles.pitchRadians;
+      configAngles.rollRadians = -angles.rollRadians;
     break;
     case SensorFusion::MAHONY:
-      angles.roll = -angles.roll;
-      angles.pitch = -angles.pitch;
-      angles.pitchRadians = -angles.pitchRadians;
-      angles.rollRadians = -angles.rollRadians;
+      configAngles.roll = -angles.roll;
+      configAngles.pitch = -angles.pitch;
+      configAngles.pitchRadians = -angles.pitchRadians;
+      configAngles.rollRadians = -angles.rollRadians;
       break;
     case SensorFusion::COMPLEMENTARY:
-      angles.yaw = -angles.yaw;
-      angles.yawRadians = -angles.yawRadians;
+      configAngles.yaw = -angles.yaw;
+      configAngles.yawRadians = -angles.yawRadians;
       break;
     case SensorFusion::FUSION:
       break;
