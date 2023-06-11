@@ -55,7 +55,14 @@ enum class BoardType {
   NANO33BLE_SENSE_R1,
   NANO33BLE_SENSE_R2,
   XIAO_SENSE,
-  NOT_SUPPORTED
+  NOT_DEFINED
+};
+
+enum class ImuType {
+  LSM9DS1 = 0,
+  LSM6DS3,
+  BMI270_BMM150,
+  UNKNOWN
 };
 
 enum class SensorFusion { // Sensor fusion algorithm options
@@ -89,6 +96,8 @@ class ReefwingAHRS {
     void setFusionGain(float g);
     void setDeclination(float dec);
     void setData(SensorData d);
+    void setImuType(ImuType i);
+    void setBoardType(BoardType b);
 
     void updateEulerAngles(float deltaT);
     void classicUpdate();
@@ -101,6 +110,7 @@ class ReefwingAHRS {
     BoardType getBoardType();
     const char* getBoardTypeString();
 
+    void formatAnglesForConfigurator();
     Quaternion getQuaternion();
     EulerAngles angles;
 
@@ -111,6 +121,7 @@ class ReefwingAHRS {
     float _eInt[3] = {0.0f, 0.0f, 0.0f};             //  Vector to hold integral error for Mahony filter
     float _att[4] = {1.0f, 0.0f, 0.0f, 0.0f};        //  Attitude quaternion for complementary filter
 
+    ImuType _imuType;
     BoardType _boardType;
     SensorFusion _fusion;
     

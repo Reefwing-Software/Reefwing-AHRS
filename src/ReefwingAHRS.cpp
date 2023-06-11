@@ -49,7 +49,7 @@ ReefwingAHRS::ReefwingAHRS() {
 
 void ReefwingAHRS::begin() {
   //  Detect Board Hardware
-  _boardType = BoardType::NOT_SUPPORTED;
+  setBoardType(BoardType::NOT_DEFINED);
 
   #if defined(ARDUINO_ARDUINO_NANO33BLE)    //  Nano 33 BLE found
   
@@ -60,22 +60,26 @@ void ReefwingAHRS::begin() {
     error = Wire1.endTransmission();
 
     if (error == 0) {
-      _boardType = BoardType::NANO33BLE_SENSE_R1;
+      setBoardType(BoardType::NANO33BLE_SENSE_R1);
+      setImuType(ImuType::LSM9DS1);
     }
     else {
       Wire1.beginTransmission(HS3003_ADDRESS);
       error = Wire1.endTransmission();
 
       if (error == 0) {
-        _boardType = BoardType::NANO33BLE_SENSE_R2;
+        setBoardType(BoardType::NANO33BLE_SENSE_R2);
+        setImuType(ImuType::BMI270_BMM150);
       }
       else {
-        _boardType = BoardType::NANO33BLE;
+        setBoardType(BoardType::NANO33BLE);
+        setImuType(ImuType::LSM9DS1);
       }
     }
   #else
     if (strncmp(BOARD_NAME, _boardTypeStr[3], 25) == 0) {
-      _boardType = BoardType::XIAO_SENSE;
+      setBoardType(BoardType::XIAO_SENSE);
+      setImuType(ImuType::LSM6DS3);
     }
   #endif
 
@@ -141,6 +145,36 @@ SensorData ReefwingAHRS::filterFormat() {
   return filterData;
 }
 
+void ReefwingAHRS::formatAnglesForConfigurator() {
+  //  
+  switch(_fusion) {
+    case SensorFusion::MADGWICK:
+      angles.roll = -angles.roll;
+      angles.pitch = -angles.pitch;
+      angles.pitchRadians = -angles.pitchRadians;
+      angles.rollRadians = -angles.rollRadians;
+    break;
+    case SensorFusion::MAHONY:
+      angles.roll = -angles.roll;
+      angles.pitch = -angles.pitch;
+      angles.pitchRadians = -angles.pitchRadians;
+      angles.rollRadians = -angles.rollRadians;
+      break;
+    case SensorFusion::COMPLEMENTARY:
+      angles.yaw = -angles.yaw;
+      angles.yawRadians = -angles.yawRadians;
+      break;
+    case SensorFusion::FUSION:
+      break;
+    case SensorFusion::CLASSIC:
+      break;
+    case SensorFusion::NONE:
+      break;
+    default:
+      break;
+  }
+}
+
 BoardType ReefwingAHRS::getBoardType() {
   return _boardType;
 }
@@ -184,7 +218,33 @@ void ReefwingAHRS::setDeclination(float dec) {
 }
 
 void ReefwingAHRS::setData(SensorData d) {
+  //  Convert IMU data to NED Reference Frame
   _data = d;
+  
+  switch(_imuType) {
+    case ImuType::LSM9DS1:
+      _data.az = -d.az;
+      _data.gz = -d.gz;
+      _data.mx = -d.mx;
+      _data.mz = -d.mz;
+    break;
+    case ImuType::LSM6DS3:
+    break;
+    case ImuType::BMI270_BMM150:
+    break;
+    case ImuType::UNKNOWN:
+    break;
+    default:
+    break;
+  }
+}
+
+void ReefwingAHRS::setBoardType(BoardType b) {
+  _boardType = b;
+}
+
+void ReefwingAHRS::setImuType(ImuType i) {
+  _imuType = i;
 }
 
 Quaternion ReefwingAHRS::getQuaternion() {
