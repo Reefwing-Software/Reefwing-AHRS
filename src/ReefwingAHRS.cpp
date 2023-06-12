@@ -21,9 +21,6 @@
              "An efficient orientation filter for inertial and 
              inertial/magnetic sensor arrays" written by Sebastian 
              O.H. Madgwick in April 30, 2010.
-           - Fusion Library is based on the revised AHRS algorithm 
-             presented in chapter 7 of Madgwick's PhD thesis.
-             ref: https://github.com/xioTechnologies/Fusion
 
 ******************************************************************/
 
@@ -116,9 +113,6 @@ void ReefwingAHRS::update() {
       complementaryUpdate(filterFormat(), deltaT);
       angles = _q.toEulerAngles(_declination);
     break;
-    case SensorFusion::FUSION:
-      //  TODO:
-    break;
     case SensorFusion::CLASSIC:
       updateEulerAngles(deltaT);
       classicUpdate();
@@ -132,8 +126,7 @@ void ReefwingAHRS::update() {
 }
 
 SensorData ReefwingAHRS::filterFormat() {
-  //  Correct LSM9DS1 magnetometer x-axis mismatch
-  //  and convert gyro to radians/sec.
+  //  Convert gyro DPS to radians/sec.
   SensorData filterData = _data;
 
   filterData.gx = _data.gx * DEG_TO_RAD;
@@ -164,8 +157,6 @@ void ReefwingAHRS::formatAnglesForConfigurator() {
     case SensorFusion::COMPLEMENTARY:
       configAngles.yaw = -angles.yaw;
       configAngles.yawRadians = -angles.yawRadians;
-      break;
-    case SensorFusion::FUSION:
       break;
     case SensorFusion::CLASSIC:
       break;
@@ -210,16 +201,13 @@ void ReefwingAHRS::setKi(float i) {
   _Ki = i;
 }
 
-void ReefwingAHRS::setFusionGain(float g) {
-  //TODO:
-}
-
 void ReefwingAHRS::setDeclination(float dec) {
   _declination = dec;
 }
 
 void ReefwingAHRS::setData(SensorData d) {
-  //  Convert IMU data to NED Reference Frame
+  //  If required, convert IMU data to a 
+  //  consistent Reference Frame.
   _data = d;
   
   switch(_imuType) {

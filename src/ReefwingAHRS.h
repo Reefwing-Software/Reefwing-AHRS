@@ -21,9 +21,6 @@
              "An efficient orientation filter for inertial and 
              inertial/magnetic sensor arrays" written by Sebastian 
              O.H. Madgwick in April 30, 2010.
-           - Fusion Library is based on the revised AHRS algorithm 
-             presented in chapter 7 of Madgwick's PhD thesis.
-             ref: https://github.com/xioTechnologies/Fusion
          
 ******************************************************************/
 
@@ -32,8 +29,6 @@
 
 #include <Arduino.h>
 #include <Reefwing_imuTypes.h>
-
-#include "Fusion.h"
 
 /******************************************************************
  *
@@ -69,7 +64,6 @@ enum class SensorFusion { // Sensor fusion algorithm options
   MADGWICK = 0,
   MAHONY,
   COMPLEMENTARY,
-  FUSION,
   CLASSIC,
   NONE
 };
@@ -93,7 +87,6 @@ class ReefwingAHRS {
     void setGyroMeasError(float gme);
     void setKp(float p);
     void setKi(float i);
-    void setFusionGain(float g);
     void setDeclination(float dec);
     void setData(SensorData d);
     void setImuType(ImuType i);
