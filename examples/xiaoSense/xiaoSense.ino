@@ -16,11 +16,11 @@
   2.1.0 Updated Fusion Library                    30/12/22
   2.2.0 Add support for Nano 33 BLE Sense Rev. 2  10/02/23
 
-  This sketch is configured to work with the MADGWICK, MAHONY,
-  CLASSIC, COMPLEMENTARY & NONE Sensor Fusion options. Set the 
-  algorithm that you wish to use with:
+  This sketch is configured to work with the CLASSIC & NONE 
+  Sensor Fusion options. Set the algorithm that you wish to use 
+  with:
 
-  ahrs.setFusionAlgorithm(SensorFusion::MADGWICK);
+  ahrs.setFusionAlgorithm(SensorFusion::CLASSIC);
 
 ******************************************************************/
 
@@ -77,13 +77,13 @@ void loop() {
   if (millis() - previousMillis >= displayPeriod) {
     //  Display sensor data every displayPeriod, non-blocking.
     Serial.print("--> Roll: ");
-    Serial.print(ahrs.angles.roll);
+    Serial.print(ahrs.angles.roll, 2);
     Serial.print("\tPitch: ");
-    Serial.print(ahrs.angles.pitch);
+    Serial.print(ahrs.angles.pitch, 2);
     Serial.print("\tYaw: ");
-    Serial.print(ahrs.angles.yaw);
+    Serial.print(ahrs.angles.yaw, 2);
     Serial.print("\tHeading: ");
-    Serial.print(ahrs.angles.heading);
+    Serial.print(ahrs.angles.heading, 2);
     Serial.print("\tLoop Frequency: ");
     Serial.print(loopFrequency);
     Serial.println(" Hz");

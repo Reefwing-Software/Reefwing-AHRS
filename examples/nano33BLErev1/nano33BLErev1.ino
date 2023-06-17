@@ -79,13 +79,13 @@ void loop() {
   if (millis() - previousMillis >= displayPeriod) {
     //  Display sensor data every displayPeriod, non-blocking.
     Serial.print("--> Roll: ");
-    Serial.print(ahrs.angles.roll);
+    Serial.print(ahrs.angles.roll, 2);
     Serial.print("\tPitch: ");
-    Serial.print(ahrs.angles.pitch);
+    Serial.print(ahrs.angles.pitch, 2);
     Serial.print("\tYaw: ");
-    Serial.print(ahrs.angles.yaw);
+    Serial.print(ahrs.angles.yaw, 2);
     Serial.print("\tHeading: ");
-    Serial.print(ahrs.angles.heading);
+    Serial.print(ahrs.angles.heading, 2);
     Serial.print("\tLoop Frequency: ");
     Serial.print(loopFrequency);
     Serial.println(" Hz");

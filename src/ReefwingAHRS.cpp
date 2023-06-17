@@ -41,7 +41,7 @@ ReefwingAHRS::ReefwingAHRS() {
   _boardTypeStr[1] = "Nano 33 BLE Sense";
   _boardTypeStr[2] = "Nano 33 BLE Sense Rev 2";
   _boardTypeStr[3] = "Seeed XIAO nRF52840 Sense";
-  _boardTypeStr[4] = "Unsupported Board Type";
+  _boardTypeStr[4] = "Undefined Board Type";
 }
 
 void ReefwingAHRS::begin() {
@@ -116,11 +116,15 @@ void ReefwingAHRS::update() {
     case SensorFusion::CLASSIC:
       updateEulerAngles(deltaT);
       classicUpdate();
-      tiltCompensatedYaw();
+      if (_imuType != ImuType::LSM6DS3) {
+        tiltCompensatedYaw();
+      }
     break;
     case SensorFusion::NONE:
       updateEulerAngles(deltaT);
-      tiltCompensatedYaw();
+      if (_imuType != ImuType::LSM6DS3) {
+        tiltCompensatedYaw();
+      }
     break;
   }
 }
