@@ -17,7 +17,7 @@
   2.2.0 Add support for Nano 33 BLE Sense Rev. 2  10/02/23
 
   This sketch is configured to work with the MADGWICK, MAHONY,
-  CLASSIC and COMPLEMENTARY Sensor Fusion options. Set the 
+  CLASSIC, COMPLEMENTARY & NONE Sensor Fusion options. Set the 
   algorithm that you wish to use with:
 
   imu.setFusionAlgorithm(SensorFusion::MADGWICK);
@@ -63,7 +63,7 @@ void setup() {
     Serial.println("Acceleration in G's");
     Serial.print("Magnetic field sample rate = ");
     Serial.print(IMU.magneticFieldSampleRate());
-    Serial.println(" uT");
+    Serial.println(" Hz");
     Serial.println();
     Serial.println("Magnetic Field in uT");
   } 

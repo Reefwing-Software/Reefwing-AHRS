@@ -1,7 +1,7 @@
 /******************************************************************
-  @file       nano33BLErev1.ino
+  @file       xiaoSense.ino
   @brief      Print roll, pitch, yaw and heading angles using the
-              LSM9DS1 IMU on the Nano 33 BLE & Sense rev1
+              LSM6DS3 IMU on the Seeed Xiao Sense
   @author     David Such
   @copyright  Please see the accompanying LICENSE file.
 
@@ -24,20 +24,23 @@
 
 ******************************************************************/
 
-#include <ReefwingAHRS.h>
-#include <ReefwingLSM9DS1.h>
 
-ReefwingLSM9DS1 imu;
+#include <Wire.h>
+#include <LSM6DS3.h>
+#include <ReefwingAHRS.h>
+
+
 ReefwingAHRS ahrs;
+SensorData data;
+LSM6DS3 imu(I2C_MODE, LSM6DS3_ADDRESS);
 
 int loopFrequency = 0;
 const long displayPeriod = 1000;
 unsigned long previousMillis = 0;
 
 void setup() {
-  //  Initialise the LSM9DS1 IMU & AHRS
+  //  Initialise the AHRS
   //  Use default fusion algo and parameters
-  imu.begin();
   ahrs.begin();
   
   ahrs.setFusionAlgorithm(SensorFusion::MADGWICK);
@@ -50,30 +53,25 @@ void setup() {
   Serial.print("Detected Board - ");
   Serial.println(ahrs.getBoardTypeString());
 
-  if (imu.connected()) {
-    Serial.println("LSM9DS1 IMU Connected."); 
-    Serial.println("Calibrating IMU...\n"); 
-    imu.start();
-    imu.calibrateGyro();
-    imu.calibrateAccel();
-    imu.calibrateMag();
-
-    delay(20);
-    //  Flush the first reading - this is important!
-    //  Particularly after changing the configuration.
-    imu.readGyro();
-    imu.readAccel();
-    imu.readMag();
+  if (imu.begin() == 0) {
+    Serial.println("LSM6DS3 IMU Connected."); 
+    Serial.println("Gyro/Accelerometer sample rate = 416 Hz");
   } 
   else {
-    Serial.println("LSM9DS1 IMU Not Detected.");
+    Serial.println("LSM6DS3 IMU Not Detected.");
     while(1);
   }
 }
 
 void loop() {
-  imu.updateSensorData();
-  ahrs.setData(imu.data);
+  data.gx = imu.readFloatGyroX();
+  data.gy = imu.readFloatGyroY();
+  data.gz = imu.readFloatGyroZ();
+  data.ax = imu.readFloatAccelX();
+  data.ay = imu.readFloatAccelY();
+  data.az = imu.readFloatAccelZ();
+
+  ahrs.setData(data);
   ahrs.update();
 
   if (millis() - previousMillis >= displayPeriod) {
