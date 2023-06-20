@@ -43,7 +43,7 @@ void setup() {
   //  Use default fusion algo and parameters
   ahrs.begin();
   
-  ahrs.setFusionAlgorithm(SensorFusion::MADGWICK);
+  ahrs.setFusionAlgorithm(SensorFusion::CLASSIC);
   ahrs.setDeclination(12.717);                      //  Sydney, Australia
 
   //  Start Serial and wait for connection
