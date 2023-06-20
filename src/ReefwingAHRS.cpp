@@ -219,6 +219,8 @@ void ReefwingAHRS::setData(SensorData d) {
       _data.mx = -d.mx;
     break;
     case ImuType::LSM6DS3:
+      _data.ay = -d.ay;
+      _data.gy = -d.gy;
     break;
     case ImuType::BMI270_BMM150:
     break;
