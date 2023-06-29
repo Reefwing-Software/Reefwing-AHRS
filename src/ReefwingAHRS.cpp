@@ -41,12 +41,15 @@ ReefwingAHRS::ReefwingAHRS() {
   _boardTypeStr[1] = "Nano 33 BLE Sense";
   _boardTypeStr[2] = "Nano 33 BLE Sense Rev 2";
   _boardTypeStr[3] = "Seeed XIAO nRF52840 Sense";
-  _boardTypeStr[4] = "Undefined Board Type";
+  _boardTypeStr[4] = "Portenta H7";
+  _boardTypeStr[5] = "Undefined Board Type";
 }
 
 void ReefwingAHRS::begin() {
-  //  Detect Board Hardware
+  //  Detect Board Hardware & Associated IMU
   setBoardType(BoardType::NOT_DEFINED);
+  setImuType(ImuType::UNKNOWN);
+  setDOF(DOF::DOF_6);
 
   #if defined(ARDUINO_ARDUINO_NANO33BLE)    //  Nano 33 BLE found
   
@@ -59,6 +62,7 @@ void ReefwingAHRS::begin() {
     if (error == 0) {
       setBoardType(BoardType::NANO33BLE_SENSE_R1);
       setImuType(ImuType::LSM9DS1);
+      setDOF(DOF::DOF_9);
     }
     else {
       Wire1.beginTransmission(HS3003_ADDRESS);
@@ -67,16 +71,22 @@ void ReefwingAHRS::begin() {
       if (error == 0) {
         setBoardType(BoardType::NANO33BLE_SENSE_R2);
         setImuType(ImuType::BMI270_BMM150);
+        setDOF(DOF::DOF_9);
       }
       else {
         setBoardType(BoardType::NANO33BLE);
         setImuType(ImuType::LSM9DS1);
+        setDOF(DOF::DOF_9);
       }
     }
+  #elif defined(ARDUINO_PORTENTA_H7_M7) {
+    setBoardType(BoardType::PORTENTA_H7);
+  }
   #else
     if (strncmp(BOARD_NAME, _boardTypeStr[3], 25) == 0) {
       setBoardType(BoardType::XIAO_SENSE);
       setImuType(ImuType::LSM6DS3);
+      setDOF(DOF::DOF_6);
     }
   #endif
 
@@ -96,41 +106,47 @@ void ReefwingAHRS::begin() {
 
 void ReefwingAHRS::update() {
   long now = micros();
-  float deltaT = ((now - _lastUpdate)/1000000.0f); // Time elapsed since last update
+  float deltaT = ((now - _lastUpdate)/1000000.0f); // Time elapsed since last update in seconds
 
   _lastUpdate = now;
 
   switch(_fusion) {
     case SensorFusion::MADGWICK:
-      madgwickUpdate(filterFormat(), deltaT);
+      madgwickUpdate(gyroToRadians(), deltaT);
       angles = _q.toEulerAngles(_declination);
     break;
     case SensorFusion::MAHONY:
-      mahoneyUpdate(filterFormat(), deltaT);
+      mahoneyUpdate(gyroToRadians(), deltaT);
       angles = _q.toEulerAngles(_declination);
     break;
     case SensorFusion::COMPLEMENTARY:
-      complementaryUpdate(filterFormat(), deltaT);
+      complementaryUpdate(gyroToRadians(), deltaT);
       angles = _q.toEulerAngles(_declination);
     break;
     case SensorFusion::CLASSIC:
       updateEulerAngles(deltaT);
       classicUpdate();
-      if (_imuType != ImuType::LSM6DS3) {
+      if (_dof == DOF::DOF_9) {
+        tiltCompensatedYaw();
+      }
+    break;
+    case SensorFusion::KALMAN:
+      kalmanUpdate(deltaT);
+      if (_dof == DOF::DOF_9) {
         tiltCompensatedYaw();
       }
     break;
     case SensorFusion::NONE:
       updateEulerAngles(deltaT);
-      if (_imuType != ImuType::LSM6DS3) {
+      if (_dof == DOF::DOF_9) {
         tiltCompensatedYaw();
       }
     break;
   }
 }
 
-SensorData ReefwingAHRS::filterFormat() {
-  //  Convert gyro DPS to radians/sec.
+SensorData ReefwingAHRS::gyroToRadians() {
+  //  Convert gyro data from DPS to radians/sec.
   SensorData filterData = _data;
 
   filterData.gx = _data.gx * DEG_TO_RAD;
@@ -163,6 +179,8 @@ void ReefwingAHRS::formatAnglesForConfigurator() {
       configAngles.yawRadians = -angles.yawRadians;
       break;
     case SensorFusion::CLASSIC:
+      break;
+    case SensorFusion::KALMAN:
       break;
     case SensorFusion::NONE:
       break;
@@ -209,26 +227,33 @@ void ReefwingAHRS::setDeclination(float dec) {
   _declination = dec;
 }
 
-void ReefwingAHRS::setData(SensorData d) {
+void ReefwingAHRS::setData(SensorData d, bool axisAlign) {
   //  If required, convert IMU data to a 
   //  consistent Reference Frame.
   _data = d;
-  
-  switch(_imuType) {
-    case ImuType::LSM9DS1:
-      _data.mx = -d.mx;
-    break;
-    case ImuType::LSM6DS3:
-      _data.ay = -d.ay;
-      _data.gy = -d.gy;
-    break;
-    case ImuType::BMI270_BMM150:
-    break;
-    case ImuType::UNKNOWN:
-    break;
-    default:
-    break;
+
+  if (axisAlign) {
+    switch(_imuType) {
+      case ImuType::LSM9DS1:
+        _data.mx = -d.mx;
+      break;
+      case ImuType::LSM6DS3:
+      break;
+      case ImuType::BMI270_BMM150:
+        _data.my = -d.my;
+      break;
+      case ImuType::MPU6500:
+      break;
+      case ImuType::UNKNOWN:
+      break;
+      default:
+      break;
+    }
   }
+}
+
+void ReefwingAHRS::setDOF(DOF d) {
+  _dof = d;
 }
 
 void ReefwingAHRS::setBoardType(BoardType b) {
@@ -248,6 +273,40 @@ Quaternion ReefwingAHRS::getQuaternion() {
  * ReefwingAHRS - Update Methods 
  * 
  ******************************************************************/
+
+void ReefwingAHRS::kalmanUpdate(float deltaT) {
+  dt = deltaT;
+
+  // Prediction step
+  get_prediction();
+
+  // Update step - Calculate the total accelerometer vector
+  total_vector_acc = sqrt((_data.ax * _data.ax) + (_data.ay * _data.ay) + (_data.az * _data.az)); 
+
+  // Prevent asin function producing a NaN
+  if (abs(_data.ay) < total_vector_acc) {
+    angles.rollRadians = asin((float)_data.ay/total_vector_acc);
+    angles.roll = angles.rollRadians * RAD_TO_DEG; // roll
+    z.storage(0, 0) = angles.roll;  
+  }
+
+  if (abs(_data.ax) < total_vector_acc) {
+    angles.pitchRadians = asin((float)_data.ax/total_vector_acc);
+    angles.pitch = -angles.pitchRadians  * RAD_TO_DEG; // pitch
+    z.storage(0, 1) = angles.pitch;
+  }
+
+  z.storage(0, 2) = _data.gx; // roll rate
+  z.storage(0, 3) = _data.gy; // pitch rate
+
+  get_kalman_gain();
+  get_update();
+
+  // Continuous adjustment step
+  get_residual();
+  get_epsilon();
+  scale_Q();
+}
 
 void ReefwingAHRS::classicUpdate() {
   // Convert from force vector to angle using 3 axis formula - result in radians

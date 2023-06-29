@@ -21,6 +21,9 @@
              "An efficient orientation filter for inertial and 
              inertial/magnetic sensor arrays" written by Sebastian 
              O.H. Madgwick in April 30, 2010.
+           - Kalman filter code is forked from kalman_filter (c5f4d8e)
+             by Callum Bruce. 
+             Ref: https://github.com/c-bruce/kalman_filter/tree/master
          
 ******************************************************************/
 
@@ -29,6 +32,9 @@
 
 #include <Arduino.h>
 #include <Reefwing_imuTypes.h>
+#include <BasicLinearAlgebra.h>
+
+#include "kalmanFilter.h"
 
 /******************************************************************
  *
@@ -50,13 +56,20 @@ enum class BoardType {
   NANO33BLE_SENSE_R1,
   NANO33BLE_SENSE_R2,
   XIAO_SENSE,
+  PORTENTA_H7,
   NOT_DEFINED
+};
+
+enum class DOF {
+  DOF_6 = 0,
+  DOF_9
 };
 
 enum class ImuType {
   LSM9DS1 = 0,
   LSM6DS3,
   BMI270_BMM150,
+  MPU6500,
   UNKNOWN
 };
 
@@ -65,6 +78,7 @@ enum class SensorFusion { // Sensor fusion algorithm options
   MAHONY,
   COMPLEMENTARY,
   CLASSIC,
+  KALMAN,
   NONE
 };
 
@@ -88,7 +102,8 @@ class ReefwingAHRS {
     void setKp(float p);
     void setKi(float i);
     void setDeclination(float dec);
-    void setData(SensorData d);
+    void setData(SensorData d, bool axisAlign = true);
+    void setDOF(DOF d);
     void setImuType(ImuType i);
     void setBoardType(BoardType b);
 
@@ -97,9 +112,10 @@ class ReefwingAHRS {
     void tiltCompensatedYaw();
     void madgwickUpdate(SensorData d, float deltaT); 
     void mahoneyUpdate(SensorData d, float deltaT);
+    void kalmanUpdate(float deltaT);
     void complementaryUpdate(SensorData d, float deltaT);
     
-    SensorData filterFormat();
+    SensorData gyroToRadians();
     BoardType getBoardType();
     const char* getBoardTypeString();
 
@@ -108,12 +124,13 @@ class ReefwingAHRS {
     EulerAngles angles, configAngles;
 
   private:
-    long _lastUpdate;
+    long _lastUpdate;                                //  Time since last update in micro-seconds (us)
     float _declination;
     float _gyroMeasError, _alpha, _beta, _Kp, _Ki;   //  Sensor Fusion free parameters
     float _eInt[3] = {0.0f, 0.0f, 0.0f};             //  Vector to hold integral error for Mahony filter
     float _att[4] = {1.0f, 0.0f, 0.0f, 0.0f};        //  Attitude quaternion for complementary filter
 
+    DOF _dof;
     ImuType _imuType;
     BoardType _boardType;
     SensorFusion _fusion;
