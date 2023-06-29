@@ -79,9 +79,8 @@ void ReefwingAHRS::begin() {
         setDOF(DOF::DOF_9);
       }
     }
-  #elif defined(ARDUINO_PORTENTA_H7_M7) {
+  #elif defined(ARDUINO_PORTENTA_H7_M7) 
     setBoardType(BoardType::PORTENTA_H7);
-  }
   #else
     if (strncmp(BOARD_NAME, _boardTypeStr[3], 25) == 0) {
       setBoardType(BoardType::XIAO_SENSE);
