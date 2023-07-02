@@ -21,12 +21,27 @@
 
   imu.setFusionAlgorithm(SensorFusion::MADGWICK);
 
+  We are using the FastIMU MPU6500 library. Substitute the
+  appropriate library and setup/calibration for your IMU
+
 ******************************************************************/
 
 #include <ReefwingAHRS.h>
+#include <FastIMU.h>
 
 ReefwingAHRS ahrs;
 SensorData data;
+
+#define IMU_ADDRESS 0x68    //  Change to the address of the IMU
+#define PERFORM_CALIBRATION //  Comment to disable startup calibration
+MPU6500 IMU;                //  Change to the name of any supported IMU! 
+
+// Currently supported IMUs: MPU9255 MPU9250 MPU6886 MPU6500 MPU6050 ICM20689 ICM20690 BMI055 BMX055 BMI160 LSM6DS3 LSM6DSL
+
+calData calib = { 0 };  //  Calibration data
+AccelData accelData;    //  Sensor data
+GyroData gyroData;
+MagData magData;
 
 int loopFrequency = 0;
 const long displayPeriod = 1000;
@@ -48,24 +63,90 @@ void setup() {
   Serial.print("Detected Board - ");
   Serial.println(ahrs.getBoardTypeString());
 
-  if (imu.begin() == 0) {
-    Serial.println("LSM6DS3 IMU Connected."); 
-    Serial.println("Gyro/Accelerometer sample rate = 416 Hz");
-  } 
+  int err = IMU.init(calib, IMU_ADDRESS);
+
+  if (err != 0) {
+    Serial.print("Error initializing IMU: ");
+    Serial.println(err);
+    while (1);
+  }
   else {
-    Serial.println("LSM6DS3 IMU Not Detected.");
-    while(1);
+    Serial.println("MPU6500 IMU Connected."); 
+  }
+
+  #ifdef PERFORM_CALIBRATION
+  Serial.println("FastIMU calibration & data example");
+  if (IMU.hasMagnetometer()) {
+    delay(1000);
+    Serial.println("Move IMU in figure 8 pattern until done.");
+    delay(3000);
+    IMU.calibrateMag(&calib);
+    Serial.println("Magnetic calibration done!");
+  }
+  else {
+    delay(5000);
+  }
+
+  delay(5000);
+  Serial.println("Keep IMU level.");
+  delay(5000);
+  IMU.calibrateAccelGyro(&calib);
+  Serial.println("Calibration done!");
+  Serial.println("Accel biases X/Y/Z: ");
+  Serial.print(calib.accelBias[0]);
+  Serial.print(", ");
+  Serial.print(calib.accelBias[1]);
+  Serial.print(", ");
+  Serial.println(calib.accelBias[2]);
+  Serial.println("Gyro biases X/Y/Z: ");
+  Serial.print(calib.gyroBias[0]);
+  Serial.print(", ");
+  Serial.print(calib.gyroBias[1]);
+  Serial.print(", ");
+  Serial.println(calib.gyroBias[2]);
+  if (IMU.hasMagnetometer()) {
+    Serial.println("Mag biases X/Y/Z: ");
+    Serial.print(calib.magBias[0]);
+    Serial.print(", ");
+    Serial.print(calib.magBias[1]);
+    Serial.print(", ");
+    Serial.println(calib.magBias[2]);
+    Serial.println("Mag Scale X/Y/Z: ");
+    Serial.print(calib.magScale[0]);
+    Serial.print(", ");
+    Serial.print(calib.magScale[1]);
+    Serial.print(", ");
+    Serial.println(calib.magScale[2]);
+  }
+  delay(5000);
+  IMU.init(calib, IMU_ADDRESS);
+#endif
+
+  //err = IMU.setGyroRange(500);      //USE THESE TO SET THE RANGE, IF AN INVALID RANGE IS SET IT WILL RETURN -1
+  //err = IMU.setAccelRange(2);       //THESE TWO SET THE GYRO RANGE TO ±500 DPS AND THE ACCELEROMETER RANGE TO ±2g
+  
+  if (err != 0) {
+    Serial.print("Error Setting range: ");
+    Serial.println(err);
+    while (true) {
+      ;
+    }
   }
 }
 
 void loop() {
-  data.gx = imu.readFloatGyroX();
-  data.gy = imu.readFloatGyroY();
-  data.gz = imu.readFloatGyroZ();
-  data.ax = imu.readFloatAccelX();
-  data.ay = imu.readFloatAccelY();
-  data.az = imu.readFloatAccelZ();
+  IMU.update();
+  IMU.getAccel(&accelData);
 
+  data.ax = accelData.accelX;
+  data.ay = accelData.accelY;
+  data.az = accelData.accelZ;
+
+  IMU.getGyro(&gyroData);
+  data.gx = gyroData.gyroX;
+  data.gy = gyroData.gyroY;
+  data.gz = gyroData.gyroZ;
+  
   ahrs.setData(data);
   ahrs.update();
 
