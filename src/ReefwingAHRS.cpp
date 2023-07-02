@@ -101,6 +101,9 @@ void ReefwingAHRS::begin() {
 
   //  Set default magnetic declination - Sydney, NSW, AUSTRALIA
   setDeclination(12.717);
+
+  //  Init Kalman Filter
+  kalmanFilter = KalmanFilter();
 }
 
 void ReefwingAHRS::update() {
@@ -274,37 +277,37 @@ Quaternion ReefwingAHRS::getQuaternion() {
  ******************************************************************/
 
 void ReefwingAHRS::kalmanUpdate(float deltaT) {
-  dt = deltaT;
+  kalmanFilter.dt = deltaT;
 
   // Prediction step
-  get_prediction();
+  kalmanFilter.get_prediction();
 
   // Update step - Calculate the total accelerometer vector
-  total_vector_acc = sqrt((_data.ax * _data.ax) + (_data.ay * _data.ay) + (_data.az * _data.az)); 
+  kalmanFilter.total_vector_acc = sqrt((_data.ax * _data.ax) + (_data.ay * _data.ay) + (_data.az * _data.az)); 
 
   // Prevent asin function producing a NaN
-  if (abs(_data.ay) < total_vector_acc) {
-    angles.rollRadians = asin((float)_data.ay/total_vector_acc);
+  if (abs(_data.ay) < kalmanFilter.total_vector_acc) {
+    angles.rollRadians = asin((float)_data.ay/kalmanFilter.total_vector_acc);
     angles.roll = angles.rollRadians * RAD_TO_DEG; // roll
-    z.storage(0, 0) = angles.roll;  
+    kalmanFilter.z.storage(0, 0) = angles.roll;  
   }
 
-  if (abs(_data.ax) < total_vector_acc) {
-    angles.pitchRadians = asin((float)_data.ax/total_vector_acc);
+  if (abs(_data.ax) < kalmanFilter.total_vector_acc) {
+    angles.pitchRadians = asin((float)_data.ax/kalmanFilter.total_vector_acc);
     angles.pitch = -angles.pitchRadians  * RAD_TO_DEG; // pitch
-    z.storage(0, 1) = angles.pitch;
+    kalmanFilter.z.storage(0, 1) = angles.pitch;
   }
 
-  z.storage(0, 2) = _data.gx; // roll rate
-  z.storage(0, 3) = _data.gy; // pitch rate
+  kalmanFilter.z.storage(0, 2) = _data.gx; // roll rate
+  kalmanFilter.z.storage(0, 3) = _data.gy; // pitch rate
 
-  get_kalman_gain();
-  get_update();
+  kalmanFilter.get_kalman_gain();
+  kalmanFilter.get_update();
 
   // Continuous adjustment step
-  get_residual();
-  get_epsilon();
-  scale_Q();
+  kalmanFilter.get_residual();
+  kalmanFilter.get_epsilon();
+  kalmanFilter.scale_Q();
 }
 
 void ReefwingAHRS::classicUpdate() {

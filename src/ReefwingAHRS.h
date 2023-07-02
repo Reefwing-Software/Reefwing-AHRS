@@ -34,7 +34,7 @@
 #include <Reefwing_imuTypes.h>
 #include <BasicLinearAlgebra.h>
 
-#include "kalmanFilter.h"
+#include "KalmanFilter.h"
 
 /******************************************************************
  *
@@ -122,6 +122,7 @@ class ReefwingAHRS {
     void formatAnglesForConfigurator();
     Quaternion getQuaternion();
     EulerAngles angles, configAngles;
+    KalmanFilter kalmanFilter;
 
   private:
     long _lastUpdate;                                //  Time since last update in micro-seconds (us)
