@@ -21,9 +21,9 @@
              "An efficient orientation filter for inertial and 
              inertial/magnetic sensor arrays" written by Sebastian 
              O.H. Madgwick in April 30, 2010.
-           - Kalman filter code is forked from kalman_filter (c5f4d8e)
-             by Callum Bruce. 
-             Ref: https://github.com/c-bruce/kalman_filter/tree/master
+           - Kalman filter code is forked from KalmanFilter (3e5d060)
+             v1.0.2 by Kristian Lauszus. 
+             Ref: https://github.com/TKJElectronics/KalmanFilter/tree/master
 
 ******************************************************************/
 
@@ -106,7 +106,8 @@ void ReefwingAHRS::begin() {
   setDeclination(12.717);
 
   //  Init Kalman Filter
-  kalmanFilter = KalmanFilter();
+  kalmanX.setAngle(0);     // Set starting angle - roll
+  kalmanY.setAngle(0);     // Set starting angle - pitch
 }
 
 void ReefwingAHRS::update() {
@@ -280,37 +281,28 @@ Quaternion ReefwingAHRS::getQuaternion() {
  ******************************************************************/
 
 void ReefwingAHRS::kalmanUpdate(float deltaT) {
-  dt = deltaT;
+  float accRollAngle  = atan(_data.ay / sqrt(_data.ax * _data.ax + _data.az * _data.az)) * RAD_TO_DEG;
+  float accPitchAngle = atan2(-_data.ax, _data.az) * RAD_TO_DEG;
 
-  // Prediction step
-  kalmanFilter.get_prediction();
-
-  // Update step - Calculate the total accelerometer vector
-  kalmanFilter.total_vector_acc = sqrt((_data.ax * _data.ax) + (_data.ay * _data.ay) + (_data.az * _data.az)); 
-
-  // Prevent asin function producing a NaN
-  if (abs(_data.ay) < kalmanFilter.total_vector_acc) {
-    angles.rollRadians = asin((float)_data.ay/kalmanFilter.total_vector_acc);
-    angles.roll = angles.rollRadians * RAD_TO_DEG; // roll
-    z.storage(0, 0) = angles.roll;  
+  // This fixes the transition problem when the accelerometer angle jumps between -180 and 180 degrees
+  if ((accPitchAngle < -90 && _kalAngleY > 90) || (accPitchAngle > 90 && _kalAngleY < -90)) {
+    kalmanY.setAngle(accPitchAngle);
+    _kalAngleY = accPitchAngle;
+  } 
+  else {
+    _kalAngleY = kalmanY.getAngle(accPitchAngle, _data.gy, deltaT); // Calculate the angle using a Kalman filter
   }
 
-  if (abs(_data.ax) < kalmanFilter.total_vector_acc) {
-    angles.pitchRadians = asin((float)_data.ax/kalmanFilter.total_vector_acc);
-    angles.pitch = -angles.pitchRadians  * RAD_TO_DEG; // pitch
-    z.storage(0, 1) = angles.pitch;
+  if (abs(_kalAngleY) > 90) {
+    _data.gx = -_data.gx; // Invert rate, so it fits the restriced accelerometer reading
   }
+  _kalAngleX = kalmanX.getAngle(accRollAngle, _data.gx, deltaT); // Calculate the angle using a Kalman filter
 
-  z.storage(0, 2) = _data.gx; // roll rate
-  z.storage(0, 3) = _data.gy; // pitch rate
-
-  kalmanFilter.get_kalman_gain();
-  kalmanFilter.get_update();
-
-  // Continuous adjustment step
-  kalmanFilter.get_residual();
-  kalmanFilter.get_epsilon();
-  kalmanFilter.scale_Q();
+  //  Assign Kalman Filtered results
+  angles.pitch = _kalAngleY;
+  angles.roll = _kalAngleX;
+  angles.pitchRadians = angles.pitch * DEG_TO_RAD;
+  angles.rollRadians = angles.roll * DEG_TO_RAD;
 }
 
 void ReefwingAHRS::classicUpdate() {

@@ -1,111 +1,53 @@
-/******************************************************************
-  @file       KalmanFilter.h
-  @brief      Attitude determination using Kalman filtering 
-  @authors    Callum Bruce & David Such
-  @copyright  Please see the accompanying LICENSE file.
+/* Copyright (C) 2012 Kristian Lauszus, TKJ Electronics. All rights reserved.
 
-  Modified Code:  David Such
-  Version:        1.0.0
-  Date:           29/06/23
+ This software may be distributed and modified under the terms of the GNU
+ General Public License version 2 (GPL2) as published by the Free Software
+ Foundation and appearing in the file GPL2.TXT included in the packaging of
+ this file. Please note that GPL2 Section 2[b] requires that all works based
+ on this software must also be made publicly available under the terms of
+ the GPL2 ("Copyleft").
 
-  1.0.0 Original Release.                         29/06/23
+ Contact information
+ -------------------
 
-  Credits: - Kalman filter code is forked from kalman_filter (c5f4d8e)
-             by Callum Bruce. 
-             Ref: https://github.com/c-bruce/kalman_filter/tree/master
-             
-             Callum has written an article describing the theory
-             behind the Kalman filter and his implementation
-             at: https://betterprogramming.pub/let-build-an-arduino-based-kalman-filter-for-attitude-determination-a895263b172
-         
-******************************************************************/
+ Kristian Lauszus, TKJ Electronics
+ Web      :  http://www.tkjelectronics.com
+ e-mail   :  kristianl@tkjelectronics.com
+ */
 
 #ifndef KalmanFilter_h
 #define KalmanFilter_h
 
-#include <BasicLinearAlgebra.h>
-
-/******************************************************************
- *
- * Global Variables - Basic Linear Algebra - 
- * 
- ******************************************************************/
-
-//  Kalman Filter Variable - delta time
-float dt;
-
-//  Continuous Adjustment Variables
-BLA::Matrix<1, 1> epsilon = {0.0}; // Normalized square of the residual
-
-// Varying matricies
-BLA::Matrix<4, 1> x = {0.0, 0.0, 0.0, 0.0}; // State [roll, pitch, roll_rate, pitch_rate]
-BLA::Matrix<4, 1> z = {0.0, 0.0, 0.0, 0.0}; // Measurement state [roll, pitch, roll_rate, pitch_rate]
-BLA::Matrix<4, 1> y = {0.0, 0.0, 0.0, 0.0}; // Residule [roll, pitch, roll_rate, pitch_rate]
-BLA::Matrix<4, 4> P = {1.0, 0.0, 0.0, 0.0, 
-                       0.0, 1.0, 0.0, 0.0,
-                       0.0, 0.0, 1.0, 0.0,
-                       0.0, 0.0, 0.0, 1.0}; // Covariance matrix
-BLA::Matrix<4, 4> Q = {pow(dt, 4) / 4, 0.0, 0.0, 0.0, 
-                       0.0, pow(dt, 4) / 4, 0.0, 0.0,
-                       0.0, 0.0, pow(dt, 2), 0.0,
-                       0.0, 0.0, 0.0, pow(dt, 2)};  // Process noise matrix
-BLA::Matrix<4, 4> K = {0.0, 0.0, 0.0, 0.0, 
-                       0.0, 0.0, 0.0, 0.0,
-                       0.0, 0.0, 0.0, 0.0,
-                       0.0, 0.0, 0.0, 0.0}; // Kalman gain matrix
-BLA::Matrix<4, 4> inv = {0.0, 0.0, 0.0, 0.0, 
-                         0.0, 0.0, 0.0, 0.0,
-                         0.0, 0.0, 0.0, 0.0,
-                         0.0, 0.0, 0.0, 0.0}; // Inverse matrix required to calculate K
-
-// Constant matricies
-const BLA::Matrix<4, 1> u = {0.0, 0.0, 0.0, 0.0}; // Control vector
-const BLA::Matrix<4, 4> R = {50.0, 0.0, 0.0, 0.0, 
-                             0.0, 50.0, 0.0, 0.0,
-                             0.0, 0.0, 10.0, 0.0,
-                             0.0, 0.0, 0.0, 10.0}; // Measurement covariance matrix
-const BLA::Matrix<4, 4> Fstm = {1.0, 0.0, dt, 0.0, 
-                                0.0, 1.0, 0.0, dt,
-                                0.0, 0.0, 1.0, 0.0,
-                                0.0, 0.0, 0.0, 1.0}; // State transition matrix - F already defined in Arduino
-const BLA::Matrix<4, 4> B = {0.0, 0.0, 0.0, 0.0, 
-                             0.0, 0.0, 0.0, 0.0,
-                             0.0, 0.0, 0.0, 0.0,
-                             0.0, 0.0, 0.0, 0.0}; // Control matrix
-const BLA::Matrix<4, 4> H = {1.0, 0.0, 0.0, 0.0, 
-                             0.0, 1.0, 0.0, 0.0,
-                             0.0, 0.0, 1.0, 0.0,
-                             0.0, 0.0, 0.0, 1.0}; // Observation matrix
-const BLA::Matrix<4, 4> I = {1.0, 0.0, 0.0, 0.0, 
-                             0.0, 1.0, 0.0, 0.0,
-                             0.0, 0.0, 1.0, 0.0,
-                             0.0, 0.0, 0.0, 1.0}; // Identity matrix
-
-/******************************************************************
- *
- * Kalman Filter Class - 
- * 
- ******************************************************************/
-
 class KalmanFilter {
-  public:
+public:
     KalmanFilter();
 
-    void get_prediction();
-    void get_kalman_gain();
-    void get_update();
-    void get_residual();
-    void get_epsilon();
-    void scale_Q();
+    // The angle should be in degrees and the rate should be in degrees per second and the delta time in seconds
+    float getAngle(float newAngle, float newRate, float dt);
 
-    //  Kalman Filter Variable
-    float total_vector_acc;
+    void setAngle(float angle); // Used to set angle, this should be set as the starting angle
+    float getRate(); // Return the unbiased rate
 
-    //  Continuous Adjustment Variables
-    int count = 0;
-    float epsilon_max = 1.0;
-    float Q_scale_factor = 1000.0;
+    /* These are used to tune the Kalman filter */
+    void setQangle(float Q_angle);
+    void setQbias(float Q_bias);
+    void setRmeasure(float R_measure);
 
+    float getQangle();
+    float getQbias();
+    float getRmeasure();
+
+private:
+    /* Kalman filter variables */
+    float Q_angle; // Process noise variance for the accelerometer
+    float Q_bias; // Process noise variance for the gyro bias
+    float R_measure; // Measurement noise variance - this is actually the variance of the measurement noise
+
+    float angle; // The angle calculated by the Kalman filter - part of the 2x1 state vector
+    float bias; // The gyro bias calculated by the Kalman filter - part of the 2x1 state vector
+    float rate; // Unbiased rate calculated from the rate and the calculated bias - you have to call getAngle to update the rate
+
+    float P[2][2]; // Error covariance matrix - This is a 2x2 matrix
 };
 
 #endif

@@ -21,9 +21,9 @@
              "An efficient orientation filter for inertial and 
              inertial/magnetic sensor arrays" written by Sebastian 
              O.H. Madgwick in April 30, 2010.
-           - Kalman filter code is forked from kalman_filter (c5f4d8e)
-             by Callum Bruce. 
-             Ref: https://github.com/c-bruce/kalman_filter/tree/master
+           - Kalman filter code is forked from KalmanFilter (3e5d060)
+             v1.0.2 by Kristian Lauszus. 
+             Ref: https://github.com/TKJElectronics/KalmanFilter/tree/master
          
 ******************************************************************/
 
@@ -121,7 +121,7 @@ class ReefwingAHRS {
     void formatAnglesForConfigurator();
     Quaternion getQuaternion();
     EulerAngles angles, configAngles;
-    KalmanFilter kalmanFilter;
+    KalmanFilter kalmanX, kalmanY;
 
   private:
     long _lastUpdate;                                //  Time since last update in micro-seconds (us)
@@ -129,6 +129,7 @@ class ReefwingAHRS {
     float _gyroMeasError, _alpha, _beta, _Kp, _Ki;   //  Sensor Fusion free parameters
     float _eInt[3] = {0.0f, 0.0f, 0.0f};             //  Vector to hold integral error for Mahony filter
     float _att[4] = {1.0f, 0.0f, 0.0f, 0.0f};        //  Attitude quaternion for complementary filter
+    float _kalAngleX, _kalAngleY;                    //  Kalman Filter Roll and Pitch
 
     DOF _dof;
     ImuType _imuType;
