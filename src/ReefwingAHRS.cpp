@@ -292,17 +292,17 @@ void ReefwingAHRS::kalmanUpdate(float deltaT) {
   if (abs(_data.ay) < kalmanFilter.total_vector_acc) {
     angles.rollRadians = asin((float)_data.ay/kalmanFilter.total_vector_acc);
     angles.roll = angles.rollRadians * RAD_TO_DEG; // roll
-    kalmanFilter.z.storage(0, 0) = angles.roll;  
+    z.storage(0, 0) = angles.roll;  
   }
 
   if (abs(_data.ax) < kalmanFilter.total_vector_acc) {
     angles.pitchRadians = asin((float)_data.ax/kalmanFilter.total_vector_acc);
     angles.pitch = -angles.pitchRadians  * RAD_TO_DEG; // pitch
-    kalmanFilter.z.storage(0, 1) = angles.pitch;
+    z.storage(0, 1) = angles.pitch;
   }
 
-  kalmanFilter.z.storage(0, 2) = _data.gx; // roll rate
-  kalmanFilter.z.storage(0, 3) = _data.gy; // pitch rate
+  z.storage(0, 2) = _data.gx; // roll rate
+  z.storage(0, 3) = _data.gy; // pitch rate
 
   kalmanFilter.get_kalman_gain();
   kalmanFilter.get_update();
