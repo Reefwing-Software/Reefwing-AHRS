@@ -32,7 +32,6 @@
 
 #include <Arduino.h>
 #include <Reefwing_imuTypes.h>
-#include <BasicLinearAlgebra.h>
 
 #include "KalmanFilter.h"
 

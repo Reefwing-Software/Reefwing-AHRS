@@ -21,6 +21,9 @@
              "An efficient orientation filter for inertial and 
              inertial/magnetic sensor arrays" written by Sebastian 
              O.H. Madgwick in April 30, 2010.
+           - Kalman filter code is forked from kalman_filter (c5f4d8e)
+             by Callum Bruce. 
+             Ref: https://github.com/c-bruce/kalman_filter/tree/master
 
 ******************************************************************/
 
