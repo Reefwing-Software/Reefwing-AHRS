@@ -280,7 +280,7 @@ Quaternion ReefwingAHRS::getQuaternion() {
  ******************************************************************/
 
 void ReefwingAHRS::kalmanUpdate(float deltaT) {
-  kalmanFilter.dt = deltaT;
+  dt = deltaT;
 
   // Prediction step
   kalmanFilter.get_prediction();

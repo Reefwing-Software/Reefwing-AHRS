@@ -31,6 +31,9 @@
  * 
  ******************************************************************/
 
+//  Kalman Filter Variable - delta time
+float dt;
+
 //  Continuous Adjustment Variables
 BLA::Matrix<1, 1> epsilon = {0.0}; // Normalized square of the residual
 
@@ -95,8 +98,8 @@ class KalmanFilter {
     void get_epsilon();
     void scale_Q();
 
-    //  Kalman Filter Variables
-    float total_vector_acc, dt;
+    //  Kalman Filter Variable
+    float total_vector_acc;
 
     //  Continuous Adjustment Variables
     int count = 0;
