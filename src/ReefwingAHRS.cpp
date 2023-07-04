@@ -281,22 +281,28 @@ Quaternion ReefwingAHRS::getQuaternion() {
  ******************************************************************/
 
 void ReefwingAHRS::kalmanUpdate(float deltaT) {
-  float accRollAngle  = atan(_data.ay / sqrt(_data.ax * _data.ax + _data.az * _data.az)) * RAD_TO_DEG;
-  float accPitchAngle = atan2(-_data.ax, _data.az) * RAD_TO_DEG;
+  //  The formulas for the roll φ and pitch θ angles have an infinite number of solutions at multiples of 360°.
+  //  The solution is to restrict either the roll or the pitch angle (but not both) to lie between -90° and +90°. 
+  //  The convention used in the aerospace sequence is that the roll angle can range between -180° to +180° but 
+  //  the pitch angle is restricted to -90° to +90°.
+  //  Ref: Tilt Sensing Using a Three-Axis Accelerometer - NXP AN3461
+  //  URL: https://www.nxp.com/docs/en/application-note/AN3461.pdf
+  float accRollAngle  = atan2(_data.ay, _data.az) * RAD_TO_DEG;
+  float accPitchAngle = atan(-_data.ax / sqrt(_data.ay * _data.ay + _data.az * _data.az)) * RAD_TO_DEG;
 
   // This fixes the transition problem when the accelerometer angle jumps between -180 and 180 degrees
-  if ((accPitchAngle < -90 && _kalAngleY > 90) || (accPitchAngle > 90 && _kalAngleY < -90)) {
-    kalmanY.setAngle(accPitchAngle);
-    _kalAngleY = accPitchAngle;
+  if ((accRollAngle < -90 && _kalAngleX > 90) || (accRollAngle > 90 && _kalAngleX < -90)) {
+    kalmanX.setAngle(accRollAngle);
+    _kalAngleX = accRollAngle;
   } 
   else {
-    _kalAngleY = kalmanY.getAngle(accPitchAngle, _data.gy, deltaT); // Calculate the angle using a Kalman filter
+    _kalAngleX = kalmanX.getAngle(accRollAngle, _data.gx, deltaT); // Calculate the angle using a Kalman filter
   }
 
-  if (abs(_kalAngleY) > 90) {
-    _data.gx = -_data.gx; // Invert rate, so it fits the restriced accelerometer reading
+  if (abs(_kalAngleX) > 90) {
+    _data.gy = -_data.gy; // Invert rate, so it fits the restriced accelerometer reading
   }
-  _kalAngleX = kalmanX.getAngle(accRollAngle, _data.gx, deltaT); // Calculate the angle using a Kalman filter
+  _kalAngleY = kalmanY.getAngle(accPitchAngle, _data.gy, deltaT);
 
   //  Assign Kalman Filtered results
   angles.pitch = _kalAngleY;

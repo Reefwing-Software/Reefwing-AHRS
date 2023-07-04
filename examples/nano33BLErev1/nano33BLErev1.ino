@@ -40,6 +40,8 @@ void setup() {
   imu.begin();
   ahrs.begin();
   
+  //  If your IMU isn't autodetected and has a mag you need
+  //  to add: ahrs.setDOF(DOF::DOF_9);
   ahrs.setFusionAlgorithm(SensorFusion::MADGWICK);
   ahrs.setDeclination(12.717);                      //  Sydney, Australia
 
