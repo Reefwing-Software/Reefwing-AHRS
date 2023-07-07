@@ -44,6 +44,10 @@
 #define DEG_TO_RAD 0.01745329251994   //  PI/180 * degrees
 #define RAD_TO_DEG 57.2957795130823   //  180/PI * radians
 
+#ifndef BOARD_NAME
+#define BOARD_NAME 
+#endif
+
 /******************************************************************
  *
  * ENUM Class & Struct Definitions - 
@@ -56,6 +60,8 @@ enum class BoardType {
   NANO33BLE_SENSE_R2,
   XIAO_SENSE,
   PORTENTA_H7,
+  VIDOR_4000,
+  NANO33IOT,
   NOT_DEFINED
 };
 
@@ -139,7 +145,7 @@ class ReefwingAHRS {
     SensorData _data;   //  Sensor Data: gyro - DPS, accel - g's, mag - gauss
     Quaternion _q;      //  Quaternion used for AHRS update
 
-    const char* _boardTypeStr[5];
+    const char* _boardTypeStr[8];
 
 };
 
