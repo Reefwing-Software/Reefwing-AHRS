@@ -16,7 +16,7 @@
   2.1.0 Updated Fusion Library                    30/12/22
   2.2.0 Add support for Nano 33 BLE Sense Rev. 2  10/02/23
 
-  This sketch is configured to work with the CLASSIC & NONE Sensor 
+  This sketch is configured to work with the CLASSIC, KALMAN & NONE Sensor 
   Fusion options. Set the algorithm that you wish to use with:
 
   imu.setFusionAlgorithm(SensorFusion::MADGWICK);
@@ -52,6 +52,7 @@ void setup() {
   //  begin() will detect the Portenta H7 but this has no default IMU
   ahrs.begin();
   ahrs.setImuType(ImuType::MPU6500);
+  ahrs.setDOF(DOF::DOF_6);
   
   ahrs.setFusionAlgorithm(SensorFusion::CLASSIC);
   ahrs.setDeclination(12.717);                      //  Sydney, Australia

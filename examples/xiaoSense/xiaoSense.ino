@@ -16,7 +16,7 @@
   2.1.0 Updated Fusion Library                    30/12/22
   2.2.0 Add support for Nano 33 BLE Sense Rev. 2  10/02/23
 
-  This sketch is configured to work with the CLASSIC & NONE 
+  This sketch is configured to work with the CLASSIC, KALMAN & NONE 
   Sensor Fusion options. Set the algorithm that you wish to use 
   with:
 

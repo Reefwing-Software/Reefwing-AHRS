@@ -17,7 +17,7 @@
   2.2.0 Add support for Nano 33 BLE Sense Rev. 2  10/02/23
 
   This sketch is configured to work with the MADGWICK, MAHONY,
-  CLASSIC, COMPLEMENTARY & NONE Sensor Fusion options. Set the 
+  CLASSIC, COMPLEMENTARY, KALMAN & NONE Sensor Fusion options. Set the 
   algorithm that you wish to use with:
 
   imu.setFusionAlgorithm(SensorFusion::MADGWICK);
