@@ -40,14 +40,15 @@
  ******************************************************************/
 
 ReefwingAHRS::ReefwingAHRS() { 
-  _boardTypeStr[0] = "Nano 33 BLE";
-  _boardTypeStr[1] = "Nano 33 BLE Sense";
-  _boardTypeStr[2] = "Nano 33 BLE Sense Rev 2";
-  _boardTypeStr[3] = "Seeed XIAO nRF52840 Sense";
-  _boardTypeStr[4] = "MKR Portenta H7";
-  _boardTypeStr[5] = "MKR Vidor 4000";
-  _boardTypeStr[6] = "Nano 33 IoT";
-  _boardTypeStr[7] = "Undefined Board Type";
+  _boardTypeStr[0] = "Nano";
+  _boardTypeStr[1] = "Nano 33 BLE";
+  _boardTypeStr[2] = "Nano 33 BLE Sense";
+  _boardTypeStr[3] = "Nano 33 BLE Sense Rev 2";
+  _boardTypeStr[4] = "Seeed XIAO nRF52840 Sense";
+  _boardTypeStr[5] = "MKR Portenta H7";
+  _boardTypeStr[6] = "MKR Vidor 4000";
+  _boardTypeStr[7] = "Nano 33 IoT";
+  _boardTypeStr[8] = "Undefined Board Type";
 }
 
 void ReefwingAHRS::begin() {
@@ -84,6 +85,8 @@ void ReefwingAHRS::begin() {
         setDOF(DOF::DOF_9);
       }
     }
+  #elif defined(ARDUINO_AVR_NANO)   
+    setBoardType(BoardType::NANO);
   #elif defined(ARDUINO_PORTENTA_H7_M7) 
     setBoardType(BoardType::PORTENTA_H7);
   #elif defined(ARDUINO_SAMD_MKRVIDOR4000)
@@ -91,7 +94,7 @@ void ReefwingAHRS::begin() {
   #elif defined(ARDUINO_SAMD_NANO_33_IOT)
     setBoardType(BoardType::NANO33IOT);
   #elif defined(BOARD_NAME)
-    if (strncmp(BOARD_NAME, _boardTypeStr[3], 25) == 0) {
+    if (strncmp(BOARD_NAME, _boardTypeStr[4], 25) == 0) {
       setBoardType(BoardType::XIAO_SENSE);
       setImuType(ImuType::LSM6DS3);
       setDOF(DOF::DOF_6);
@@ -253,6 +256,8 @@ void ReefwingAHRS::setData(SensorData d, bool axisAlign) {
       break;
       case ImuType::BMI270_BMM150:
         _data.my = -d.my;
+      break;
+      case ImuType::MPU6050:
       break;
       case ImuType::MPU6500:
       break;

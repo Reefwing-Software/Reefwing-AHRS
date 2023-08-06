@@ -55,7 +55,8 @@
  ******************************************************************/
 
 enum class BoardType {
-  NANO33BLE = 0,
+  NANO = 0,
+  NANO33BLE,
   NANO33BLE_SENSE_R1,
   NANO33BLE_SENSE_R2,
   XIAO_SENSE,
@@ -74,6 +75,7 @@ enum class ImuType {
   LSM9DS1 = 0,
   LSM6DS3,
   BMI270_BMM150,
+  MPU6050,
   MPU6500,
   UNKNOWN
 };
@@ -145,7 +147,7 @@ class ReefwingAHRS {
     SensorData _data;   //  Sensor Data: gyro - DPS, accel - g's, mag - gauss
     Quaternion _q;      //  Quaternion used for AHRS update
 
-    const char* _boardTypeStr[8];
+    const char* _boardTypeStr[9];
 
 };
 
