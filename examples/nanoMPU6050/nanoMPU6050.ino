@@ -16,11 +16,14 @@
   2.1.0 Updated Fusion Library                    30/12/22
   2.2.0 Add support for Nano 33 BLE Sense Rev. 2  10/02/23
 
-  This sketch is configured to work with the MADGWICK, MAHONY,
-  CLASSIC, COMPLEMENTARY, KALMAN & NONE Sensor Fusion options. Set the 
-  algorithm that you wish to use with:
+  This sketch is configured to work with the CLASSIC, KALMAN & NONE 
+  Sensor Fusion options. Set the algorithm that you wish to use 
+  with:
 
-  ahrs.setFusionAlgorithm(SensorFusion::MADGWICK);
+  ahrs.setFusionAlgorithm(SensorFusion::CLASSIC);
+
+  The other Sensor Fusion algorithms require a 9 DOF IMU (i.e., 
+  a magnetometer).
 
 ******************************************************************/
 
@@ -46,7 +49,7 @@ void setup() {
   //  to add: ahrs.setDOF(DOF::DOF_9);
   ahrs.setDOF(DOF::DOF_6);
   ahrs.setImuType(ImuType::MPU6050);
-  ahrs.setFusionAlgorithm(SensorFusion::MADGWICK);
+  ahrs.setFusionAlgorithm(SensorFusion::KALMAN);
   ahrs.setDeclination(12.717);                      //  Sydney, Australia
 
   //  Start Serial and wait for connection

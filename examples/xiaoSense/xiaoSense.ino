@@ -22,6 +22,9 @@
 
   ahrs.setFusionAlgorithm(SensorFusion::CLASSIC);
 
+  The other Sensor Fusion algorithms require a 9 DOF IMU (i.e., 
+  a magnetometer).
+
 ******************************************************************/
 
 
