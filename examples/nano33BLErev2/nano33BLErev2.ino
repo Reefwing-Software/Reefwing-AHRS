@@ -30,6 +30,7 @@
 ReefwingAHRS ahrs;
 SensorData data;
 
+//  Display and Loop Frequency
 int loopFrequency = 0;
 const long displayPeriod = 1000;
 unsigned long previousMillis = 0;

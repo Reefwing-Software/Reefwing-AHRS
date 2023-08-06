@@ -22,6 +22,7 @@
 LSM9DS1 imu;
 EulerAngles angles;
 
+//  Display and Loop Frequency
 int loopFrequency = 0;
 const long displayPeriod = 1000;
 unsigned long previousMillis = 0;

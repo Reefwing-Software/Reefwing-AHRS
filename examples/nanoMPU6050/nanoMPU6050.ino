@@ -1,7 +1,7 @@
 /******************************************************************
-  @file       nano33BLErev1.ino
+  @file       nanoMPU6050.ino
   @brief      Print roll, pitch, yaw and heading angles using the
-              LSM9DS1 IMU on the Nano 33 BLE & Sense rev1
+              MPU6050 IMU on the Arduino AVR Nano.
   @author     David Such
   @copyright  Please see the accompanying LICENSE file.
 
@@ -25,9 +25,9 @@
 ******************************************************************/
 
 #include <ReefwingAHRS.h>
-#include <ReefwingLSM9DS1.h>
+#include <ReefwingMPU6050.h>
 
-ReefwingLSM9DS1 imu;
+ReefwingMPU6050 imu;
 ReefwingAHRS ahrs;
 
 //  Display and Loop Frequency
@@ -36,13 +36,16 @@ const long displayPeriod = 1000;
 unsigned long previousMillis = 0;
 
 void setup() {
-  //  Initialise the LSM9DS1 IMU & AHRS
+  //  Initialise the MPU6050 IMU & AHRS
   //  Use default fusion algo and parameters
-  imu.begin();
+  imu.begin(MPU6050_SCALE_2000DPS, MPU6050_RANGE_2G);
   ahrs.begin();
-  
+
+  //  Nano will be detected but could use any IMU
   //  If your IMU isn't autodetected and has a mag you need
   //  to add: ahrs.setDOF(DOF::DOF_9);
+  ahrs.setDOF(DOF::DOF_6);
+  ahrs.setImuType(ImuType::MPU6050);
   ahrs.setFusionAlgorithm(SensorFusion::MADGWICK);
   ahrs.setDeclination(12.717);                      //  Sydney, Australia
 
@@ -50,26 +53,18 @@ void setup() {
   Serial.begin(115200);
   while (!Serial);
 
-  Serial.print("Detected Board - ");
-  Serial.println(ahrs.getBoardTypeString());
-
   if (imu.connected()) {
-    Serial.println("LSM9DS1 IMU Connected."); 
-    Serial.println("Calibrating IMU...\n"); 
-    imu.start();
-    imu.calibrateGyro();
-    imu.calibrateAccel();
-    imu.calibrateMag();
+    Serial.println("MPU6050 IMU Connected."); 
 
+    imu.calibrateGyro();
     delay(20);
+
     //  Flush the first reading - this is important!
     //  Particularly after changing the configuration.
-    imu.readGyro();
-    imu.readAccel();
-    imu.readMag();
-  } 
-  else {
-    Serial.println("LSM9DS1 IMU Not Detected.");
+    imu.readRawGyro();
+    imu.readRawAccel();
+  } else {
+    Serial.println("MPU6050 IMU Not Detected.");
     while(1);
   }
 }
