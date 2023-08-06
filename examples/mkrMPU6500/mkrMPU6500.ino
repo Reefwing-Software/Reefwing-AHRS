@@ -1,7 +1,7 @@
 /******************************************************************
-  @file       portentaH7.ino
+  @file       mkrMPU6500.ino
   @brief      Print roll, pitch, yaw and heading angles using the
-              MPU6500 IMU and the Portenta H7, connected via SPI.
+              MPU6500 IMU and a MKR board, connected via SPI.
   @author     David Such
   @copyright  Please see the accompanying LICENSE file.
 
@@ -77,7 +77,8 @@ void setup() {
   pinMode(LED1_PIN, OUTPUT);
 
   //  Initialise the AHRS
-  //  begin() will detect the Portenta H7 but this has no default IMU
+  //  begin() will detect the Portenta H7 or MKR Vidor 4000 
+  //  but these have no default IMU.
   ahrs.begin();
   ahrs.setImuType(ImuType::MPU6500);
   ahrs.setDOF(DOF::DOF_6);

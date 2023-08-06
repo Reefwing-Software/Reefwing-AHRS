@@ -18,9 +18,10 @@
 ******************************************************************/
 
 #include <ReefwingAHRS.h>
+#include <ReefwingLSM9DS1.h>
 
-LSM9DS1 imu;
-EulerAngles angles;
+ReefwingLSM9DS1 imu;
+ReefwingAHRS ahrs;
 
 //  Display and Loop Frequency
 int loopFrequency = 0;
@@ -28,51 +29,59 @@ const long displayPeriod = 1000;
 unsigned long previousMillis = 0;
 
 void setup() {
-  // Initialise the LSM9DS1 IMU and LPS22HB Barometer
+  //  Initialise the LSM9DS1 IMU & AHRS
+  //  Use default fusion algo and parameters
   imu.begin();
+  ahrs.begin();
 
   //  Positive magnetic declination - Sydney, AUSTRALIA
-  imu.setDeclination(12.717);
-  imu.setFusionAlgorithm(SensorFusion::COMPLEMENTARY);
-  imu.setAlpha(0.95);
+  ahrs.setDeclination(12.717);
+  ahrs.setFusionAlgorithm(SensorFusion::COMPLEMENTARY);
+  ahrs.setAlpha(0.95);
 
   //  Start Serial and wait for connection
   Serial.begin(115200);
   while (!Serial);
 
+  Serial.print("Detected Board - ");
+  Serial.println(ahrs.getBoardTypeString());
+
   if (imu.connected()) {
     Serial.println("LSM9DS1 IMU Connected."); 
-
-    //  Paste your calibration bias offset HERE
-    //  This information comes from the testAndCalibrate.ino 
-    //  sketch in the library examples sub-directory.
-    imu.loadAccBias(0.070862, -0.046570, -0.016907);
-    imu.loadGyroBias(0.800018, 0.269165, -0.097198);
-    imu.loadMagBias(-0.192261, -0.012085, 0.118652);
-
-    //  Start processing IMU data.
+    Serial.println("Calibrating IMU...\n"); 
     imu.start();
-  }
+    imu.calibrateGyro();
+    imu.calibrateAccel();
+    imu.calibrateMag();
+
+    delay(20);
+    //  Flush the first reading - this is important!
+    //  Particularly after changing the configuration.
+    imu.readGyro();
+    imu.readAccel();
+    imu.readMag();
+  } 
   else {
-    Serial.println("LSM9DS1 Accelerometer, Magnetometer and Gyroscope not found.");
+    Serial.println("LSM9DS1 IMU Not Detected.");
     while(1);
   }
 }
 
 void loop() {
-  //  Check for new IMU data and update angles
-  angles = imu.update();
+  imu.updateSensorData();
+  ahrs.setData(imu.data);
+  ahrs.update();
 
-  //  Display sensor data every displayPeriod, non-blocking.
   if (millis() - previousMillis >= displayPeriod) {
-    Serial.print("Roll: ");
-    Serial.print(angles.roll);
+    //  Display sensor data every displayPeriod, non-blocking.
+    Serial.print("--> Roll: ");
+    Serial.print(ahrs.angles.roll, 2);
     Serial.print("\tPitch: ");
-    Serial.print(angles.pitch);
+    Serial.print(ahrs.angles.pitch, 2);
     Serial.print("\tYaw: ");
-    Serial.print(angles.yaw);
+    Serial.print(ahrs.angles.yaw, 2);
     Serial.print("\tHeading: ");
-    Serial.print(angles.heading);
+    Serial.print(ahrs.angles.heading, 2);
     Serial.print("\tLoop Frequency: ");
     Serial.print(loopFrequency);
     Serial.println(" Hz");

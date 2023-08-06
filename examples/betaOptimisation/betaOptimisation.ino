@@ -27,9 +27,10 @@
 ******************************************************************/
 
 #include <ReefwingAHRS.h>
+#include <ReefwingLSM9DS1.h>
 
-LSM9DS1 imu;
-EulerAngles angles;
+ReefwingLSM9DS1 imu;
+ReefwingAHRS ahrs;
 
 #define MIN_BETA          0.0
 #define MAX_BETA          0.5
@@ -58,47 +59,59 @@ float rms(float arr[]) {
 }
 
 void setup() {
-  // Initialise the LSM9DS1 IMU
+  //  Initialise the LSM9DS1 IMU & AHRS
   imu.begin();
+  ahrs.begin();
 
   //  Positive magnetic declination - Sydney, AUSTRALIA
-  imu.setDeclination(12.717);
-  imu.setFusionAlgorithm(SensorFusion::MADGWICK);
-  imu.setBeta(beta);
+  ahrs.setDeclination(12.717);
+  ahrs.setFusionAlgorithm(SensorFusion::MADGWICK);
+  ahrs.setBeta(beta);
 
   //  Start Serial and wait for connection
   Serial.begin(115200);
   while (!Serial);
 
+  Serial.print("Detected Board - ");
+  Serial.println(ahrs.getBoardTypeString());
+
   if (imu.connected()) {
     Serial.println("LSM9DS1 IMU Connected."); 
+    Serial.println("Calibrating IMU...\n"); 
+    imu.start();
+    imu.calibrateGyro();
+    imu.calibrateAccel();
+    imu.calibrateMag();
 
-    //  Paste your calibration bias offset HERE
-    //  This information comes from the testAndCalibrate.ino 
-    //  sketch in the library examples sub-directory.
-    imu.loadAccBias(0.070862, -0.046570, -0.016907);
-    imu.loadGyroBias(0.800018, 0.269165, -0.097198);
-    imu.loadMagBias(-0.192261, -0.012085, 0.118652);
+    delay(20);
+    //  Flush the first reading - this is important!
+    //  Particularly after changing the configuration.
+    imu.readGyro();
+    imu.readAccel();
+    imu.readMag();
 
     //  Start processing IMU data.
     Serial.println("Starting Beta Optimisation.\n"); 
     Serial.println("Nano 33 BLE should remain motionless for duration of test.\n");
     delay(1000); 
     Serial.print("Beta");  Serial.println("\tRMS Error");
-    imu.start();
-  }
+  } 
   else {
-    Serial.println("LSM9DS1 Accelerometer, Magnetometer and Gyroscope not found.");
-    while (1);
+    Serial.println("LSM9DS1 IMU Not Detected.");
+    while(1);
   }
 
   while (beta < MAX_BETA) {
     while (ctr < SAMPLES_PER_BETA) {
+      //  Check for new IMU data and update angles
+      imu.updateSensorData();
+      ahrs.setData(imu.data);
+      ahrs.update();
+
       //  load sampleArray with measured pitch and roll angles
-      angles = imu.update();  //  Check for new IMU data and update angles
-      sampleArray[ctr] = angles.roll;
+      sampleArray[ctr] = ahrs.angles.roll;
       ctr++;
-      sampleArray[ctr] = angles.pitch;
+      sampleArray[ctr] = ahrs.angles.pitch;
       ctr++;
       delay(10);  //  Wait for new sample
     }
