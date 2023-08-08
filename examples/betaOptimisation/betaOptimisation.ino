@@ -41,7 +41,7 @@ ReefwingAHRS ahrs;
 
 float beta = MIN_BETA;   //  Madgwick filter gain, Beta
 float sampleArray[SAMPLES_PER_BETA];
-float error, optimumBeta, minError = INFINITY;
+float err, optimumBeta, minError = INFINITY;
 int ctr = 0;           //  Track samples collected for each value of beta
 
 float rms(float arr[]) {
@@ -116,13 +116,13 @@ void setup() {
       delay(10);  //  Wait for new sample
     }
     ctr = 0;
-    error = rms(sampleArray);
-    if (error < minError) {
-      minError = error;
+    err = rms(sampleArray);
+    if (err < minError) {
+      minError = err;
       optimumBeta = beta;
     }
     
-    Serial.print(beta); Serial.print("\t"); Serial.println(error);
+    Serial.print(beta); Serial.print("\t"); Serial.println(err);
     beta += BETA_INC;
   }
 

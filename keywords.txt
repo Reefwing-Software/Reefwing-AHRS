@@ -7,67 +7,46 @@
 #######################################
 
 ReefwingAHRS    KEYWORD1
-LSM9DS1 KEYWORD1
-LPS22HB KEYWORD1
+BoardType   KEYWORD1
+DOF KEYWORD1
+ImuType KEYWORD1
 Quaternion  KEYWORD1
 SensorFusion    KEYWORD1
 SelfTestResults KEYWORD1
 BiasOffsets KEYWORD1
 EulerAngles KEYWORD1
 SensorData  KEYWORD1
-Ascale  KEYWORD1
-Gscale  KEYWORD1
-Mscale  KEYWORD1
+KalmanFilter    KEYWORD1
 
 #######################################
 # Methods and Functions (KEYWORD2)
 #######################################
 
 begin  KEYWORD2
-start   KEYWORD2
-reset   KEYWORD2
 update  KEYWORD2
-rawData KEYWORD2
-selfTest    KEYWORD2
-connected   KEYWORD2
-filterFormat    KEYWORD2
-getQuaternion   KEYWORD2
-accelAvailable  KEYWORD2
-gyroAvailable   KEYWORD2
-magAvailable    KEYWORD2
-resetQuaternion KEYWORD2
-readGyroTemp    KEYWORD2
-readTemperature	KEYWORD2
-readPressure	KEYWORD2
-readPressureUI	KEYWORD2
-readPressureRAW	KEYWORD2
+classicUpdate   KEYWORD2
 madgwickUpdate  KEYWORD2
 mahoneyUpdate   KEYWORD2
 complementaryUpdate KEYWORD2
-toEulerAngles   KEYWORD2
-setAccResolution    KEYWORD2
-setGyroResolution   KEYWORD2
-setMagResolution    KEYWORD2
-getAccResolution    KEYWORD2
-getGyroResolution   KEYWORD2
-getMagResolution    KEYWORD2
-calibrateAccGyro    KEYWORD2
-calibrateMag    KEYWORD2
-setFusionPeriod KEYWORD2
-setFusionThreshold  KEYWORD2
+kalmanUpdate    KEYWORD2
+tiltCompensatedYaw  KEYWORD2
 setFusionAlgorithm  KEYWORD2
 setAlpha    KEYWORD2
 setBeta KEYWORD2
 setGyroMeasError    KEYWORD2
 setKp   KEYWORD2
 setKi   KEYWORD2
-setFusionGain   KEYWORD2
 setDeclination  KEYWORD2
-loadAccBias KEYWORD2
-loadGyroBias    KEYWORD2
-loadMagBias KEYWORD2
-getBiasOffsets  KEYWORD2
+setData KEYWORD2
+setDOF  KEYWORD2
+setImuType  KEYWORD2
+setBoardType    KEYWORD2
+updateEulerAngles   KEYWORD2
 getQuaternion   KEYWORD2
+gyroToRadians   KEYWORD2
+getBoardType    KEYWORD2
+getBoardTypeString  KEYWORD2
+formatAnglesForConfigurator KEYWORD2
 
 #######################################
 # Constants (LITERAL1)
@@ -80,3 +59,5 @@ FUSION  LITERAL1
 CLASSIC LITERAL1
 KALMAN  LITERAL1
 NONE    LITERAL1
+DEG_TO_RAD  LITERAL1
+RAD_TO_DEG  LITERAL1
