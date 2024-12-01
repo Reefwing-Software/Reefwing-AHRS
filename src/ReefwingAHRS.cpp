@@ -1,13 +1,12 @@
 /******************************************************************
   @file       ReefwingAHRS.cpp
-  @brief      Attitude and Heading Reference System (AHRS) for the 
-              Arduino Nano 33 BLE and XIAO Sense
+  @brief      Attitude and Heading Reference System (AHRS)
   @author     David Such
   @copyright  Please see the accompanying LICENSE file.
 
   Code:        David Such
-  Version:     2.2.0
-  Date:        10/02/23
+  Version:     2.3.0
+  Date:        20/11/24
 
   1.0.0 Original Release.                         22/02/22
   1.1.0 Added NONE fusion option.                 25/05/22
@@ -15,15 +14,13 @@
   2.0.1 Invert Gyro Values PR                     24/12/22
   2.1.0 Updated Fusion Library                    30/12/22
   2.2.0 Add support for Nano 33 BLE Sense Rev. 2  10/02/23
+  2.3.0 Extended Kalman Filter added              20/11/24
 
   Credits: - The C++ code for our quaternion position update 
              using the Madgwick Filter is based on the paper, 
              "An efficient orientation filter for inertial and 
              inertial/magnetic sensor arrays" written by Sebastian 
              O.H. Madgwick in April 30, 2010.
-           - Kalman filter code is forked from KalmanFilter (3e5d060)
-             v1.0.2 by Kristian Lauszus. 
-             Ref: https://github.com/TKJElectronics/KalmanFilter/tree/master
 
 ******************************************************************/
 
@@ -32,6 +29,47 @@
 #include <math.h>
 
 #include "ReefwingAHRS.h"
+
+/******************************************************************
+ *
+ * Extended Kalman Filter utilities - 
+ * 
+ ******************************************************************/
+
+// Define state transition function
+// state[0]: Roll angle in radians
+// state[1]: Pitch angle in radians
+// controlInput[0]: Roll rate from gyroscope (gx in rad/s)
+// controlInput[1]: Pitch rate from gyroscope (gy in rad/s)
+void imuStateTransitionFunc(const float* state, const float* controlInput, float deltaTime, float* newState) {
+    newState[0] = state[0] + controlInput[0] * deltaTime; // Update roll
+    newState[1] = state[1] + controlInput[1] * deltaTime; // Update pitch
+}
+
+// Define measurement function
+// Assign roll and pitch from accelerometer
+void imuMeasurementFunc(const float* state, float* measurement) {
+    measurement[0] = state[0];  // Roll
+    measurement[1] = state[1];  // Pitch
+}
+
+// Jacobian is a 2x2 identity matrix for a linear state transition
+// The state variables are roll and pitch
+// The control inputs are gyroscope rates
+void imuStateJacobianFunc(const float* state, const float* controlInput, float deltaTime, float* jacobian) {
+    jacobian[0] = 1.0f;  // d(roll')/d(roll)
+    jacobian[1] = 0.0f;  // d(roll')/d(pitch)
+    jacobian[2] = 0.0f;  // d(pitch')/d(roll)
+    jacobian[3] = 1.0f;  // d(pitch')/d(pitch)
+}
+
+void imuMeasurementJacobianFunc(const float* state, float* jacobian) {
+    // Jacobian is a 2x2 identity matrix for direct measurements
+    jacobian[0] = 1.0f;  // d(measurement_roll)/d(roll)
+    jacobian[1] = 0.0f;  // d(measurement_roll)/d(pitch)
+    jacobian[2] = 0.0f;  // d(measurement_pitch)/d(roll)
+    jacobian[3] = 1.0f;  // d(measurement_pitch)/d(pitch)
+}
 
 /******************************************************************
  *
@@ -114,9 +152,55 @@ void ReefwingAHRS::begin() {
   //  Set default magnetic declination - Sydney, NSW, AUSTRALIA
   setDeclination(12.717);
 
-  //  Init Kalman Filter
-  kalmanX.setAngle(0);     // Set starting angle - roll
-  kalmanY.setAngle(0);     // Set starting angle - pitch
+  //  Init CLASSIC linear complementary filter
+  angles.pitch = 0.0f;
+  angles.roll = 0.0f;
+  angles.yaw = 0.0f;
+
+  // Init Extended Kalman Filter
+  state[0] = 0.0f; // Roll
+  state[1] = 0.0f; // Pitch
+
+  // Initialize the covariance, process noise, and measurement noise matrices
+  float initialState[2] = {0.0f, 0.0f};
+  float initialCovariance[4] = {0.01f, 0.0f, 0.0f, 0.01f}; // Small initial uncertainty
+
+
+  ekf.initialize(initialState, initialCovariance, 2, 2);
+  ekf.setStateTransition(imuStateTransitionFunc);
+  ekf.setMeasurementFunction(imuMeasurementFunc);
+  ekf.setStateTransitionJacobian(imuStateJacobianFunc);
+  ekf.setMeasurementJacobian(imuMeasurementJacobianFunc);
+}
+
+void ReefwingAHRS::reset() {
+    // Reset timing variables
+    _lastUpdate = 0;
+
+    // Reset AHRS parameters
+    angles = {0.0f, 0.0f, 0.0f};             // Reset roll, pitch, and yaw
+    configAngles = {0.0f, 0.0f, 0.0f};       // Reset configuration angles
+
+    _q = Quaternion(1.0f, 0.0f, 0.0f, 0.0f); // Reset quaternion
+    _eInt[0] = _eInt[1] = _eInt[2] = 0.0f;   // Reset Mahony integral error
+    _att[0] = 1.0f; _att[1] = 0.0f;          // Reset complementary filter state
+    _att[2] = 0.0f; _att[3] = 0.0f;
+
+    // Reset Extended Kalman Filter
+    state[0] = 0.0f; // Reset Roll
+    state[1] = 0.0f; // Reset Pitch
+
+    float initialState[2] = {0.0f, 0.0f};
+    float initialCovariance[4] = {0.01f, 0.0f, 0.0f, 0.01f}; // Small initial uncertainty
+
+    ekf.initialize(initialState, initialCovariance, 2, 2); // Reinitialize EKF
+    ekf.setStateTransition(imuStateTransitionFunc);        // Reattach transition function
+    ekf.setMeasurementFunction(imuMeasurementFunc);        // Reattach measurement function
+    ekf.setStateTransitionJacobian(imuStateJacobianFunc);  // Reattach state Jacobian
+    ekf.setMeasurementJacobian(imuMeasurementJacobianFunc); // Reattach measurement Jacobian
+
+    // Reset other variables if required (e.g., specific to filters)
+    _fusion = SensorFusion::MADGWICK; // Default filter, can be overridden later
 }
 
 void ReefwingAHRS::update() {
@@ -145,8 +229,8 @@ void ReefwingAHRS::update() {
         tiltCompensatedYaw();
       }
     break;
-    case SensorFusion::KALMAN:
-      kalmanUpdate(deltaT);
+    case SensorFusion::EXTENDED_KALMAN:
+      extendedKalmanUpdate(_data, deltaT);
       if (_dof == DOF::DOF_9) {
         tiltCompensatedYaw();
       }
@@ -195,7 +279,7 @@ void ReefwingAHRS::formatAnglesForConfigurator() {
       break;
     case SensorFusion::CLASSIC:
       break;
-    case SensorFusion::KALMAN:
+    case SensorFusion::EXTENDED_KALMAN:
       break;
     case SensorFusion::NONE:
       break;
@@ -291,43 +375,45 @@ Quaternion ReefwingAHRS::getQuaternion() {
  * 
  ******************************************************************/
 
-void ReefwingAHRS::kalmanUpdate(float deltaT) {
-  //  The formulas for the roll φ and pitch θ angles have an infinite number of solutions at multiples of 360°.
-  //  The solution is to restrict either the roll or the pitch angle (but not both) to lie between -90° and +90°. 
-  //  The convention used in the aerospace sequence is that the roll angle can range between -180° to +180° but 
-  //  the pitch angle is restricted to -90° to +90°.
-  //  Ref: Tilt Sensing Using a Three-Axis Accelerometer - NXP AN3461
-  //  URL: https://www.nxp.com/docs/en/application-note/AN3461.pdf
-  float accRollAngle  = atan2(_data.ay, _data.az) * RAD_TO_DEG;
-  float accPitchAngle = atan(-_data.ax / sqrt(_data.ay * _data.ay + _data.az * _data.az)) * RAD_TO_DEG;
+void ReefwingAHRS::extendedKalmanUpdate(SensorData d, float deltaT) {
+  // Pre-process sensor data
+  float accRoll = atan2(d.ay, d.az);
+  float accPitch = atan2(-d.ax, sqrt(d.ay * d.ay + d.az * d.az));
 
-  // This fixes the transition problem when the accelerometer angle jumps between -180 and 180 degrees
-  if ((accRollAngle < -90 && _kalAngleX > 90) || (accRollAngle > 90 && _kalAngleX < -90)) {
-    kalmanX.setAngle(accRollAngle);
-    _kalAngleX = accRollAngle;
-  } 
-  else {
-    _kalAngleX = kalmanX.getAngle(accRollAngle, _data.gx, deltaT); // Calculate the angle using a Kalman filter
-  }
+  // Define control input (gyroscope rates in rad/s)
+  float controlInput[2] = {d.gx * DEG_TO_RAD, d.gy * DEG_TO_RAD};
 
-  if (abs(_kalAngleX) > 90) {
-    _data.gy = -_data.gy; // Invert rate, so it fits the restriced accelerometer reading
-  }
-  _kalAngleY = kalmanY.getAngle(accPitchAngle, _data.gy, deltaT);
+  // Define measurement (accelerometer angles)
+  float measurement[2] = {accRoll, accPitch};
 
-  //  Assign Kalman Filtered results
-  angles.pitch = _kalAngleY;
-  angles.roll = _kalAngleX;
-  angles.pitchRadians = angles.pitch * DEG_TO_RAD;
-  angles.rollRadians = angles.roll * DEG_TO_RAD;
+  // Call the EKF predict and update steps
+  ekf.predict(controlInput, deltaT);
+  ekf.update(measurement);
+
+  // Extract the updated state (roll and pitch)
+  const float* state = ekf.getState();
+  float roll = state[0];  
+  float pitch = state[1];
+
+  // Update angles
+  angles.roll = roll * RAD_TO_DEG;
+  angles.pitch = pitch * RAD_TO_DEG;
+  angles.rollRadians = roll;
+  angles.pitchRadians = pitch;
 }
 
 void ReefwingAHRS::classicUpdate() {
-  // Convert from force vector to angle using 3 axis formula - result in radians
-  float accRollAngle  =  atan(-1 * _data.ay / sqrt(pow(_data.ax, 2) + pow(_data.az, 2)));
-  float accPitchAngle =  -atan(-1 * _data.ax / sqrt(pow(_data.ay, 2) + pow(_data.az, 2)));
+  // Validate denominators for angle calculations
+  float rollDenominator = sqrt(pow(_data.ax, 2) + pow(_data.az, 2));
+  float pitchDenominator = sqrt(pow(_data.ay, 2) + pow(_data.az, 2));
 
-  //  Combine gyro and acc angles using a complementary filter
+  if (rollDenominator < 1e-6 || pitchDenominator < 1e-6) { return; }
+
+  // Convert from force vector to angle using 3-axis formula - result in radians
+  float accRollAngle  = atan(-1 * _data.ay / rollDenominator);
+  float accPitchAngle = -atan(-1 * _data.ax / pitchDenominator);
+
+  // Combine gyro and acc angles using a complementary filter
   angles.pitch = _alpha * angles.pitch + (1.0f - _alpha) * accPitchAngle * RAD_TO_DEG;
   angles.roll = _alpha * angles.roll + (1.0f - _alpha) * accRollAngle * RAD_TO_DEG;
   angles.pitchRadians = angles.pitch * DEG_TO_RAD;
@@ -339,15 +425,15 @@ void ReefwingAHRS::tiltCompensatedYaw() {
   float mag_x_compensated = _data.mx * cos(angles.pitchRadians) + _data.mz * sin(angles.pitchRadians);
   float mag_y_compensated = _data.mx * sin(angles.rollRadians) * sin(angles.pitchRadians) + _data.my * cos(angles.rollRadians) - _data.mz * sin(angles.rollRadians) * cos(angles.pitchRadians);
 
-  angles.yawRadians = -atan2(mag_x_compensated, mag_y_compensated);
+  angles.yawRadians = atan2(mag_y_compensated, mag_x_compensated);
   angles.yaw =  angles.yawRadians * RAD_TO_DEG;    //  Yaw compensated for tilt
-  //  float magYawAngle = atan2(_data.mx, _data.my) * RAD_TO_DEG;      //  Raw yaw from magnetometer, uncompensated for tilt - alternative yaw value
   
   angles.heading = angles.yaw - _declination;
+  angles.heading = fmod(angles.heading + 360.0, 360.0);  // Normalize to [0, 360)
 }
 
 void ReefwingAHRS::updateEulerAngles(float deltaT) {
-  // Auxiliary variables to avoid repeated arithmetic
+  // Auxiliary variables to avoid repeated calculation
   float sinPHI = sin(angles.rollRadians);
   float cosPHI = cos(angles.rollRadians);
   float cosTHETA = cos(angles.pitchRadians);
@@ -360,13 +446,18 @@ void ReefwingAHRS::updateEulerAngles(float deltaT) {
 
   float eulerRollRate = _data.gy + sinPHI * tanTHETA * _data.gx + cosPHI * tanTHETA * _data.gz;
   float eulerPitchRate = cosPHI * _data.gx - sinPHI * _data.gz;
-  float eulerYawRate = (sinPHI * _data.gx) / cosTHETA + cosPHI * cosTHETA * _data.gz;
+  float eulerYawRate = 0.0f;
+
+  if (fabs(cosTHETA) > 1e-6) {
+    // Avoid division by zero in yaw rate calculation
+    eulerYawRate = (sinPHI * _data.gx) / cosTHETA + cosPHI * cosTHETA * _data.gz;
+  }
 
   angles.rollRadians  += eulerRollRate * deltaT;    // Angle around the X-axis
   angles.pitchRadians += eulerPitchRate * deltaT;   // Angle around the Y-axis
-  angles.yawRadians   += eulerYawRate * deltaT;     // Angle around the Z-axis    
   angles.roll = angles.rollRadians * RAD_TO_DEG;
   angles.pitch = angles.pitchRadians * RAD_TO_DEG;
+  angles.yawRadians   += eulerYawRate * deltaT;     // Angle around the Z-axis 
   angles.yaw = angles.yawRadians * RAD_TO_DEG;
 }
 

@@ -16,7 +16,7 @@ SelfTestResults KEYWORD1
 BiasOffsets KEYWORD1
 EulerAngles KEYWORD1
 SensorData  KEYWORD1
-KalmanFilter    KEYWORD1
+ExtendedKalmanFilter    KEYWORD1
 
 #######################################
 # Methods and Functions (KEYWORD2)
@@ -28,7 +28,7 @@ classicUpdate   KEYWORD2
 madgwickUpdate  KEYWORD2
 mahoneyUpdate   KEYWORD2
 complementaryUpdate KEYWORD2
-kalmanUpdate    KEYWORD2
+extendedKalmanUpdate    KEYWORD2
 tiltCompensatedYaw  KEYWORD2
 setFusionAlgorithm  KEYWORD2
 setAlpha    KEYWORD2
@@ -57,7 +57,7 @@ MAHONY  LITERAL1
 COMPLEMENTARY   LITERAL1
 FUSION  LITERAL1
 CLASSIC LITERAL1
-KALMAN  LITERAL1
+EXTENDED_KALMAN  LITERAL1
 NONE    LITERAL1
 DEG_TO_RAD  LITERAL1
 RAD_TO_DEG  LITERAL1

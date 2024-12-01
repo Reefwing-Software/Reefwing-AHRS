@@ -1,13 +1,12 @@
 /******************************************************************
   @file       ReefwingAHRS.h
-  @brief      Attitude and Heading Reference System (AHRS) for the 
-              Arduino Nano 33 BLE and XIAO Sense
+  @brief      Attitude and Heading Reference System (AHRS)
   @author     David Such
   @copyright  Please see the accompanying LICENSE file.
 
   Code:        David Such
-  Version:     2.2.0
-  Date:        10/02/23
+  Version:     2.3.0
+  Date:        20/11/24
 
   1.0.0 Original Release.                         22/02/22
   1.1.0 Added NONE fusion option.                 25/05/22
@@ -15,25 +14,23 @@
   2.0.1 Invert Gyro Values PR                     24/12/22
   2.1.0 Updated Fusion Library                    30/12/22
   2.2.0 Add support for Nano 33 BLE Sense Rev. 2  10/02/23
+  2.3.0 Extended Kalman Filter added              20/11/24
 
   Credits: - The C++ code for our quaternion position update 
              using the Madgwick Filter is based on the paper, 
              "An efficient orientation filter for inertial and 
              inertial/magnetic sensor arrays" written by Sebastian 
              O.H. Madgwick in April 30, 2010.
-           - Kalman filter code is forked from KalmanFilter (3e5d060)
-             v1.0.2 by Kristian Lauszus. 
-             Ref: https://github.com/TKJElectronics/KalmanFilter/tree/master
          
 ******************************************************************/
 
-#ifndef ReefwingAHRS_h
-#define ReefwingAHRS_h
+#ifndef REEFWING_AHRS_H
+#define REEFWING_AHRS_H
 
 #include <Arduino.h>
 #include <Reefwing_imuTypes.h>
 
-#include "KalmanFilter.h"
+#include "ExtendedKalmanFilter.h"
 
 /******************************************************************
  *
@@ -85,7 +82,7 @@ enum class SensorFusion { // Sensor fusion algorithm options
   MAHONY,
   COMPLEMENTARY,
   CLASSIC,
-  KALMAN,
+  EXTENDED_KALMAN,
   NONE
 };
 
@@ -101,6 +98,7 @@ class ReefwingAHRS {
 
     void begin();
     void update();
+    void reset();
 
     void setFusionAlgorithm(SensorFusion algo);
     void setAlpha(float a);
@@ -119,7 +117,7 @@ class ReefwingAHRS {
     void tiltCompensatedYaw();
     void madgwickUpdate(SensorData d, float deltaT); 
     void mahoneyUpdate(SensorData d, float deltaT);
-    void kalmanUpdate(float deltaT);
+    void extendedKalmanUpdate(SensorData d, float deltaT); 
     void complementaryUpdate(SensorData d, float deltaT);
     
     SensorData gyroToRadians();
@@ -129,7 +127,6 @@ class ReefwingAHRS {
     void formatAnglesForConfigurator();
     Quaternion getQuaternion();
     EulerAngles angles, configAngles;
-    KalmanFilter kalmanX, kalmanY;
 
   private:
     long _lastUpdate;                                //  Time since last update in micro-seconds (us)
@@ -137,7 +134,6 @@ class ReefwingAHRS {
     float _gyroMeasError, _alpha, _beta, _Kp, _Ki;   //  Sensor Fusion free parameters
     float _eInt[3] = {0.0f, 0.0f, 0.0f};             //  Vector to hold integral error for Mahony filter
     float _att[4] = {1.0f, 0.0f, 0.0f, 0.0f};        //  Attitude quaternion for complementary filter
-    float _kalAngleX, _kalAngleY;                    //  Kalman Filter Roll and Pitch
 
     DOF _dof;
     ImuType _imuType;
@@ -148,6 +144,13 @@ class ReefwingAHRS {
     Quaternion _q;      //  Quaternion used for AHRS update
 
     const char* _boardTypeStr[9];
+
+    // Extended Kalman Filter specific variables
+    ExtendedKalmanFilter ekf; // EKF instance
+    float state[2];           // State vector [roll, pitch]
+    float P[2][2];            // Error covariance matrix
+    float Q[2][2];            // Process noise covariance
+    float R[2][2];            // Measurement noise covariance
 
 };
 

@@ -1,37 +1,32 @@
 /******************************************************************
-  @file       betaOptimisation.ino
+  @file       betaOptimisationR2.ino
   @brief      Determine optimal beta for Madgwick Filter
   @author     David Such
   @copyright  Please see the accompanying LICENSE file.
 
   Code:        David Such
-  Version:     2.2.0
-  Date:        10/02/23
+  Version:     1.0.0
+  Date:        22/11/24
 
-  1.0.0 Original Release.                         22/02/22
-  1.1.0 Added NONE fusion option.                 25/05/22
-  2.0.0 Changed Repo & Branding                   15/12/22
-  2.0.1 Invert Gyro Values PR                     24/12/22
-  2.1.0 Updated Fusion Library                    30/12/22
-  2.2.0 Add support for Nano 33 BLE Sense Rev. 2  10/02/23
-  2.3.0 Fixed RMS Error calculation               22/11/24
+  1.0.0 Original Release.                         22/11/24
 
-  This sketch attempts to determine the optimum beta for the
-  Madgwick filter. The Nano 33 BLE R1 should be placed flat and
-  not moved for the duration of the test.
+  This sketch targets the Nano 33 BLE Rev. 2 and attempts 
+  to determine the optimum beta for the Madgwick filter. 
+  The Nano 33 BLE should be placed flat and not moved for 
+  the duration of the test.
 
-  The default sample rate for this library is 238 Hz for the 
+  The default sample rate for this library is 100 Hz for the 
   gyro/accelerometer and 10 Hz for the magnetometer. Thus a 
-  new gyro/acc reading should be available every 4.2 ms. We delay
-  for 10 ms between readings.
+  new gyro/acc reading should be available every 10 ms. We delay
+  for 15 ms between readings.
 
 ******************************************************************/
 
 #include <ReefwingAHRS.h>
-#include <ReefwingLSM9DS1.h>
+#include <Arduino_BMI270_BMM150.h>
 
-ReefwingLSM9DS1 imu;
 ReefwingAHRS ahrs;
+SensorData data;
 
 #define MIN_BETA          0.0
 #define MAX_BETA          0.5
@@ -58,12 +53,12 @@ float rms(float arr[], int n) {
 }
 
 void setup() {
-  //  Initialise the LSM9DS1 IMU & AHRS
-  imu.begin();
+  //  Initialise the AHRS
   ahrs.begin();
 
+  //  Positive magnetic declination - Sydney, AUSTRALIA
   ahrs.setFusionAlgorithm(SensorFusion::MADGWICK);
-  ahrs.setDeclination(12.717); //  Sydney, AUSTRALIA
+  ahrs.setDeclination(12.717);
 
   //  Start Serial and wait for connection
   Serial.begin(115200);
@@ -72,20 +67,14 @@ void setup() {
   Serial.print("Detected Board - ");
   Serial.println(ahrs.getBoardTypeString());
 
-  if (imu.connected()) {
-    Serial.println("LSM9DS1 IMU Connected."); 
-    Serial.println("Calibrating IMU...\n"); 
-    imu.start();
-    imu.calibrateGyro();
-    imu.calibrateAccel();
-    imu.calibrateMag();
+  if (IMU.begin()) {
+    Serial.println("BMI270 & BMM150 IMUs Connected."); 
 
     delay(20);
     //  Flush the first reading - this is important!
     //  Particularly after changing the configuration.
-    imu.readGyro();
-    imu.readAccel();
-    imu.readMag();
+    IMU.readGyroscope(data.gx, data.gy, data.gz);
+    IMU.readAcceleration(data.ax, data.ay, data.az);
 
     //  Start processing IMU data.
     Serial.println("Starting Beta Optimisation.\n"); 
@@ -94,15 +83,18 @@ void setup() {
     Serial.print("Beta");  Serial.println("\tRMS Error");
   } 
   else {
-    Serial.println("LSM9DS1 IMU Not Detected.");
+    Serial.println("IMU Not Detected.");
     while(1);
   }
 
   while (beta < MAX_BETA) {
     while (ctr < SAMPLES_PER_BETA) {
       //  Check for new IMU data and update angles
-      imu.updateSensorData();
-      ahrs.setData(imu.data);
+      if (IMU.gyroscopeAvailable()) {  IMU.readGyroscope(data.gx, data.gy, data.gz);  }
+      if (IMU.accelerationAvailable()) {  IMU.readAcceleration(data.ax, data.ay, data.az);  }
+      if (IMU.magneticFieldAvailable()) {  IMU.readMagneticField(data.mx, data.my, data.mz);  }
+  
+      ahrs.setData(data);
       ahrs.update();
 
       //  load sampleArray with either pitch or roll angles
@@ -110,7 +102,7 @@ void setup() {
       ctr++;
       // sampleArray[ctr] = ahrs.angles.pitch;
       // ctr++;
-      delay(10);  //  Wait for new sample
+      delay(15);  //  Wait for new sample
     }
     ctr = 0;
     err = rms(sampleArray, SAMPLES_PER_BETA);

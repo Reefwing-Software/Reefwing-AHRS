@@ -1,4 +1,4 @@
-![version](https://img.shields.io/github/v/tag/Reefwing-Software/Reefwing-AHRS) ![license](https://img.shields.io/badge/license-MIT-green) ![release](https://img.shields.io/github/release-date/Reefwing-Software/Reefwing-AHRS?color="red") ![open source](https://badgen.net/badge/open/source/blue?icon=github)
+[![arduino-library-badge](https://www.ardu-badge.com/badge/ReefwingAHRS.svg?)](https://www.ardu-badge.com/ReefwingAHRS) ![version](https://img.shields.io/github/v/tag/Reefwing-Software/Reefwing-AHRS) ![license](https://img.shields.io/badge/license-MIT-green) ![release](https://img.shields.io/github/release-date/Reefwing-Software/Reefwing-AHRS?color="red") ![open source](https://badgen.net/badge/open/source/blue?icon=github)
 
 # Reefwing AHRS
  
@@ -9,6 +9,8 @@ An Attitude and Heading Reference System (AHRS) takes information from the Inert
  Version 1.1.0 of the library added the NONE option for Sensor Fusion. This option is used if you want Euler angles calculated but no sensor fusion filter applied. This release also fixed a bug in the Classic complementary filter calculation.
 
  Version 2.2.0 added support for the Nano 33 BLE Sense Rev. 2. Version 2 of the Nano 33 BLE Sense, replaces the LSM9DS1 9 axis IMU with a combination of two IMUs, the BMI270, a 6 axis gyro & accelerometer and the BMM150, a 3 axis magnetometer. In order to support the new hardware, it makes sense to separate the sensor processing from the sensor fusion algorithms. This library version also added the Kalman Filter Fusion option.
+
+ Version 2.3.0 added support for an Extended Kalman Filter and fixed a number of bugs.
 
  A complete description of this library is available in our Medium article: [Reefwing AHRS Arduino Library for Drones](https://reefwing.medium.com/reefwing-ahrs-arduino-library-for-drones-part-1-6d6457231764).
 
@@ -24,7 +26,7 @@ The libraries that use this definition header are:
 - [ReefwingMPU6x00](https://github.com/Reefwing-Software/MPU6x00)
 - [ReefwingMPU6050](https://github.com/Reefwing-Software/Reefwing-MPU6050)
 
-The Structs Defined in the IMU Types Library are:
+The Structs defined in the IMU Types Library are:
 
 - `EulerAngles`
 - `InertialMessage`
@@ -62,7 +64,7 @@ To use the Reefwing AHRS Library, you need to also install the Reefwing_imuTypes
 
  - Complementary Filter
  - Madgwick Filter
- - Kalman Filter
+ - Extended Kalman Filter
  - Mahony Filter
  - Classic Complementary Filter: Euler Angles are updated using trigonometry
  - NONE: Euler angles are calculated but no sensor fusion filter is used.
@@ -216,7 +218,7 @@ This sketch is configured to work with the `MADGWICK`, `MAHONY`, `CLASSIC`, `COM
 - **Madgwick Filter** - uses quaternions and combines a complementary filter approach with adaptive gain to fuse the sensor data.
 - **Mahony Filter** - uses quaternions, another riff on complementary fusion and includes an error correction step to compensate for gyroscope bias.
 - **Classic Complementary Filter** - Euler Angles are updated using trigonometry, apart from this it is similar to the Quaternion version.
-- **Kalman Filter** - can be used to minimise the impact of noise in sensors.
+- **Extended Kalman Filter** - can be used to minimise the impact of noise in sensors.
 - **NONE** - Euler angles are calculated but no sensor fusion is used. This is useful for demonstrating why you need sensor fusion!
 
 The loop frequency will vary with the board and fusion algorithm. The `COMPLEMENTARY` filter is a bit slower than the `MADGWICK` and `MAHONY`. We found that we experienced significant gyroscopic drift with the classic complementary filter. The Madgwick and Mahony filters fixes this issue but take a bit longer to settle on an angle. Of the two, Mahony is a bit faster than Madgwick, but the best filter and associated free parameter settings will depend on the application. The `NONE` option is also fast but has crazy gyroscopic drift.
