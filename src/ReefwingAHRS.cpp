@@ -5,8 +5,8 @@
   @copyright  Please see the accompanying LICENSE file.
 
   Code:        David Such
-  Version:     2.3.1
-  Date:        30/12/24
+  Version:     2.3.2
+  Date:        31/12/24
 
   1.0.0 Original Release.                         22/02/22
   1.1.0 Added NONE fusion option.                 25/05/22
@@ -16,6 +16,7 @@
   2.2.0 Add support for Nano 33 BLE Sense Rev. 2  10/02/23
   2.3.0 Extended Kalman Filter added              20/11/24
   2.3.1 Madgwick filter bug fixed                 30/12/24
+  2.3.2 Improved normalization for Madgwick       31/12/24
 
   Credits: - The C++ code for our quaternion position update 
              using the Madgwick Filter is based on the paper, 

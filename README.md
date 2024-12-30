@@ -14,6 +14,8 @@ An Attitude and Heading Reference System (AHRS) takes information from the Inert
 
  Version 2.3.1 corrects the bug in the open source Madgwick filter implementation as discovered by [Mark Uckermann](https://github.com/RideBeeline/madgwick-investigation/tree/main?tab=readme-ov-file#madgwicks-filter-implementation-analysis).
 
+ Version 2.3.2 improved normalization code for the Madgwick and Mahoney filter implementations - contributed by [Martin Budden](https://github.com/martinbudden).
+
  A complete description of this library is available in our Medium article: [Reefwing AHRS Arduino Library for Drones](https://reefwing.medium.com/reefwing-ahrs-arduino-library-for-drones-part-1-6d6457231764).
 
 ## Reefwing IMU Types
