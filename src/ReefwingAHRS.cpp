@@ -5,8 +5,8 @@
   @copyright  Please see the accompanying LICENSE file.
 
   Code:        David Such
-  Version:     2.3.0
-  Date:        20/11/24
+  Version:     2.3.1
+  Date:        30/12/24
 
   1.0.0 Original Release.                         22/02/22
   1.1.0 Added NONE fusion option.                 25/05/22
@@ -15,6 +15,7 @@
   2.1.0 Updated Fusion Library                    30/12/22
   2.2.0 Add support for Nano 33 BLE Sense Rev. 2  10/02/23
   2.3.0 Extended Kalman Filter added              20/11/24
+  2.3.1 Madgwick filter bug fixed                 30/12/24
 
   Credits: - The C++ code for our quaternion position update 
              using the Madgwick Filter is based on the paper, 
@@ -515,7 +516,7 @@ void ReefwingAHRS::complementaryUpdate(SensorData d, float deltaT) {
 
 void ReefwingAHRS::madgwickUpdate(SensorData d, float deltaT) {
   float norm;
-  float hx, hy, _2bx, _2bz;
+  float hx, hy, _2bx, _2bz, _bx, _bz;
   float s0, s1, s2, s3;
   float qDot0, qDot1, qDot2, qDot3;
 
@@ -567,8 +568,10 @@ void ReefwingAHRS::madgwickUpdate(SensorData d, float deltaT) {
 
   hx = d.mx * q0q0 - _2q0my * _q.q3 + _2q0mz * _q.q2 + d.mx * q1q1 + _2q1 * d.my * _q.q2 + _2q1 * d.mz * _q.q3 - d.mx * q2q2 - d.mx * q3q3;
   hy = _2q0mx * _q.q3 + d.my * q0q0 - _2q0mz * _q.q1 + _2q1mx * _q.q2 - d.my * q1q1 + d.my * q2q2 + _2q2 * d.mz * _q.q3 - d.my * q3q3;
-  _2bx = sqrt(hx * hx + hy * hy);
-  _2bz = -_2q0mx * _q.q2 + _2q0my * _q.q1 + d.mz * q0q0 + _2q1mx * _q.q3 - d.mz * q1q1 + _2q2 * d.my * _q.q3 - d.mz * q2q2 + d.mz * q3q3;
+  _bx = sqrt(hx * hx + hy * hy);
+  _bz = -_2q0mx * _q.q2 + _2q0my * _q.q1 + d.mz * q0q0 + _2q1mx * _q.q3 - d.mz * q1q1 + _2q2 * d.my * _q.q3 - d.mz * q2q2 + d.mz * q3q3;
+  _2bx = 2.0f * _bx;
+  _2bz = 2.0f * _bz;
   _4bx = 2.0f * _2bx;
   _4bz = 2.0f * _2bz;
 
