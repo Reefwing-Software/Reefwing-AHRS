@@ -546,19 +546,21 @@ void ReefwingAHRS::madgwickUpdate(SensorData d, float deltaT) {
 
   // Normalise accelerometer measurement
   norm = sqrt(d.ax * d.ax + d.ay * d.ay + d.az * d.az);
-  if (norm == 0.0f) return; // handle NaN
-  norm = 1.0f/norm;
-  d.ax *= norm;
-  d.ay *= norm;
-  d.az *= norm;
+  if (norm != 0.0f) {
+    norm = 1.0f/norm;
+    d.ax *= norm;
+    d.ay *= norm;
+    d.az *= norm;
+  }
 
   // Normalise magnetometer measurement
   norm = sqrt(d.mx * d.mx + d.my * d.my + d.mz * d.mz);
-  if (norm == 0.0f) return; // handle NaN
-  norm = 1.0f/norm;
-  d.mx *= norm;
-  d.my *= norm;
-  d.mz *= norm;
+  if (norm != 0.0f) {
+    norm = 1.0f/norm;
+    d.mx *= norm;
+    d.my *= norm;
+    d.mz *= norm;
+  }
 
   // Reference direction of Earth's magnetic field
   _2q0mx = 2.0f * _q.q0 * d.mx;
@@ -630,19 +632,21 @@ void ReefwingAHRS::mahoneyUpdate(SensorData d, float deltaT) {
 
   // Normalise accelerometer measurement
   norm = sqrtf(d.ax * d.ax + d.ay * d.ay + d.az * d.az);
-  if (norm == 0.0f) return; // handle NaN
-  norm = 1.0f / norm;        // use reciprocal for division
-  d.ax *= norm;
-  d.ay *= norm;
-  d.az *= norm;
+  if (norm != 0.0f) {
+    norm = 1.0f / norm;        // use reciprocal for division
+    d.ax *= norm;
+    d.ay *= norm;
+    d.az *= norm;
+  }
 
   // Normalise magnetometer measurement
   norm = sqrtf(d.mx * d.mx + d.my * d.my + d.mz * d.mz);
-  if (norm == 0.0f) return; // handle NaN
-  norm = 1.0f / norm;        // use reciprocal for division
-  d.mx *= norm;
-  d.my *= norm;
-  d.mz *= norm;
+  if (norm != 0.0f) {
+    norm = 1.0f / norm;        // use reciprocal for division
+    d.mx *= norm;
+    d.my *= norm;
+    d.mz *= norm;
+  }
 
   // Reference direction of Earth's magnetic field
   hx = 2.0f * d.mx * (0.5f - q2q2 - q3q3) + 2.0f * d.my * (q1q2 - q0q3) + 2.0f * d.mz * (q1q3 + q0q2);
