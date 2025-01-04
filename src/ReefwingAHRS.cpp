@@ -5,8 +5,8 @@
   @copyright  Please see the accompanying LICENSE file.
 
   Code:        David Such
-  Version:     2.3.2
-  Date:        31/12/24
+  Version:     2.3.3
+  Date:        05/01/25
 
   1.0.0 Original Release.                         22/02/22
   1.1.0 Added NONE fusion option.                 25/05/22
@@ -17,6 +17,8 @@
   2.3.0 Extended Kalman Filter added              20/11/24
   2.3.1 Madgwick filter bug fixed                 30/12/24
   2.3.2 Improved normalization for Madgwick       31/12/24
+  2.3.3 Complementary update enhancements         05/01/25
+
 
   Credits: - The C++ code for our quaternion position update 
              using the Madgwick Filter is based on the paper, 
@@ -483,15 +485,21 @@ void ReefwingAHRS::complementaryUpdate(SensorData d, float deltaT) {
 
   //  Calculate Attitude Quaternion
   //  ref: https://ahrs.readthedocs.io/en/latest/filters/complementary.html
-  _att[0] = _att[0] - _halfdT * d.gx * _att[1] - _halfdT * d.gy * _att[2] - _halfdT * d.gz * _att[3];
-  _att[1] = _att[1] + _halfdT * d.gx * _att[0] - _halfdT * d.gy * _att[3] + _halfdT * d.gz * _att[2];
-  _att[2] = _att[2] + _halfdT * d.gx * _att[3] + _halfdT * d.gy * _att[0] - _halfdT * d.gz * _att[1];
-  _att[3] = _att[3] - _halfdT * d.gx * _att[2] + _halfdT * d.gy * _att[1] + _halfdT * d.gz * _att[0];
+  //  amended based on suggestion of Martin Budden
+  const float qDot0 = - _d.gx * _att[1] - _d.gy * _att[2] - _d.gz * _att[3];
+  const float qDot1 = + _d.gx * _att[0] - _d.gy * _att[3] + _d.gz * _att[2];
+  const float qDot2 = + _d.gx * _att[3] + _d.gy * _att[0] - _d.gz * _att[1];
+  const float qDot3 = - _d.gx * _att[2] + _d.gy * _att[1] + _d.gz * _att[0];
+
+  _att[0] += qDot0 * halfdT;
+  _att[1] += qDot1 * halfdT;
+  _att[2] += qDot2 * halfdT;
+  _att[3] += qDot3 * halfdT;
 
   //  Calculate Tilt Vector [bx by bz] and tilt adjusted yaw (Psi) using accelerometer data
   float bx = d.mx * _cosTheta + d.my * _sinTheta * _sinPhi + d.mz * _sinTheta * _cosPhi;
   float by = d.my * _cosPhi - d.mz * _sinPhi;
-  float bz = -d.mx * _sinTheta + d.my * _cosTheta * _sinPhi + d.mz * _cosTheta * _cosPhi;
+  // float bz = -d.mx * _sinTheta + d.my * _cosTheta * _sinPhi + d.mz * _cosTheta * _cosPhi;
 
   float yaw = atan2(-by, bx);
 
@@ -513,6 +521,15 @@ void ReefwingAHRS::complementaryUpdate(SensorData d, float deltaT) {
   _q.q1 = _alpha * _att[1] + (1 - _alpha) * qam[1];
   _q.q2 = _alpha * _att[2] + (1 - _alpha) * qam[2];
   _q.q3 = _alpha * _att[3] + (1 - _alpha) * qam[3];
+
+  //  Normalize quaternion
+  //  Without normalization, errors can accumulate over time, leading to drift or instability.
+  float norm = sqrt(_q.q0 * _q.q0 + _q.q1 * _q.q1 + _q.q2 * _q.q2 + _q.q3 * _q.q3);
+
+  _q.q0 /= norm;
+  _q.q1 /= norm;
+  _q.q2 /= norm;
+  _q.q3 /= norm;
 }
 
 void ReefwingAHRS::madgwickUpdate(SensorData d, float deltaT) {
