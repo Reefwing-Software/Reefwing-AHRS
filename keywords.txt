@@ -26,7 +26,7 @@ begin  KEYWORD2
 update  KEYWORD2
 classicUpdate   KEYWORD2
 madgwickUpdate  KEYWORD2
-mahoneyUpdate   KEYWORD2
+mahonyUpdate   KEYWORD2
 complementaryUpdate KEYWORD2
 extendedKalmanUpdate    KEYWORD2
 tiltCompensatedYaw  KEYWORD2

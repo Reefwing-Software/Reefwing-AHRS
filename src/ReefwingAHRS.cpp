@@ -5,8 +5,8 @@
   @copyright  Please see the accompanying LICENSE file.
 
   Code:        David Such
-  Version:     2.3.3
-  Date:        05/01/25
+  Version:     2.3.4
+  Date:        09/01/25
 
   1.0.0 Original Release.                         22/02/22
   1.1.0 Added NONE fusion option.                 25/05/22
@@ -18,6 +18,7 @@
   2.3.1 Madgwick filter bug fixed                 30/12/24
   2.3.2 Improved normalization for Madgwick       31/12/24
   2.3.3 Complementary update enhancements         05/01/25
+  2.3.4 Corrected spelling for Mahony             09/01/25
 
 
   Credits: - The C++ code for our quaternion position update 
@@ -219,7 +220,7 @@ void ReefwingAHRS::update() {
       angles = _q.toEulerAngles(_declination);
     break;
     case SensorFusion::MAHONY:
-      mahoneyUpdate(gyroToRadians(), deltaT);
+      mahonyUpdate(gyroToRadians(), deltaT);
       angles = _q.toEulerAngles(_declination);
     break;
     case SensorFusion::COMPLEMENTARY:
@@ -629,7 +630,7 @@ void ReefwingAHRS::madgwickUpdate(SensorData d, float deltaT) {
   _q.q3 = _q.q3 * norm;
 }
 
-void ReefwingAHRS::mahoneyUpdate(SensorData d, float deltaT) {
+void ReefwingAHRS::mahonyUpdate(SensorData d, float deltaT) {
   float norm;
   float hx, hy, bx, bz;
   float vx, vy, vz, wx, wy, wz;

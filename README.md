@@ -18,6 +18,8 @@ An Attitude and Heading Reference System (AHRS) takes information from the Inert
 
  Version 2.3.3 enhanced `complementaryUpdate()`. Proper quaternion integration requires that all components are updated using their previous values before the entire quaternion is replaced. Issue identified by [Martin Budden](https://github.com/martinbudden).
 
+ Version 2.3.4 fixed spelling of Mahony. Issue identified by [Martin Budden](https://github.com/martinbudden).
+
  A complete description of this library is available in our Medium article: [Reefwing AHRS Arduino Library for Drones](https://reefwing.medium.com/reefwing-ahrs-arduino-library-for-drones-part-1-6d6457231764).
 
 ## Reefwing IMU Types
