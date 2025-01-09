@@ -5,7 +5,7 @@
   @copyright  Please see the accompanying LICENSE file.
 
   Code:        David Such
-  Version:     2.3.4
+  Version:     2.3.5
   Date:        09/01/25
 
   1.0.0 Original Release.                         22/02/22
@@ -19,6 +19,7 @@
   2.3.2 Improved normalization for Madgwick       31/12/24
   2.3.3 Complementary update enhancements         05/01/25
   2.3.4 Corrected spelling for Mahony             09/01/25
+  2.3.5 Fixed bug in comlementaryUpdate           09/01/25
 
 
   Credits: - The C++ code for our quaternion position update 
@@ -487,15 +488,15 @@ void ReefwingAHRS::complementaryUpdate(SensorData d, float deltaT) {
   //  Calculate Attitude Quaternion
   //  ref: https://ahrs.readthedocs.io/en/latest/filters/complementary.html
   //  amended based on suggestion of Martin Budden
-  const float qDot0 = - _d.gx * _att[1] - _d.gy * _att[2] - _d.gz * _att[3];
-  const float qDot1 = + _d.gx * _att[0] - _d.gy * _att[3] + _d.gz * _att[2];
-  const float qDot2 = + _d.gx * _att[3] + _d.gy * _att[0] - _d.gz * _att[1];
-  const float qDot3 = - _d.gx * _att[2] + _d.gy * _att[1] + _d.gz * _att[0];
+  const float qDot0 = - d.gx * _att[1] - d.gy * _att[2] - d.gz * _att[3];
+  const float qDot1 = + d.gx * _att[0] - d.gy * _att[3] + d.gz * _att[2];
+  const float qDot2 = + d.gx * _att[3] + d.gy * _att[0] - d.gz * _att[1];
+  const float qDot3 = - d.gx * _att[2] + d.gy * _att[1] + d.gz * _att[0];
 
-  _att[0] += qDot0 * halfdT;
-  _att[1] += qDot1 * halfdT;
-  _att[2] += qDot2 * halfdT;
-  _att[3] += qDot3 * halfdT;
+  _att[0] += qDot0 * _halfdT;
+  _att[1] += qDot1 * _halfdT;
+  _att[2] += qDot2 * _halfdT;
+  _att[3] += qDot3 * _halfdT;
 
   //  Calculate Tilt Vector [bx by bz] and tilt adjusted yaw (Psi) using accelerometer data
   float bx = d.mx * _cosTheta + d.my * _sinTheta * _sinPhi + d.mz * _sinTheta * _cosPhi;

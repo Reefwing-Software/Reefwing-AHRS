@@ -5,7 +5,7 @@
   @copyright  Please see the accompanying LICENSE file.
 
   Code:        David Such
-  Version:     2.3.4
+  Version:     2.3.5
   Date:        09/01/25
 
   1.0.0 Original Release.                         22/02/22
@@ -19,6 +19,7 @@
   2.3.2 Improved normalization for Madgwick       31/12/24
   2.3.3 Complementary update enhancements         05/01/25
   2.3.4 Corrected spelling for Mahony             09/01/25
+  2.3.5 Fixed bug in comlementaryUpdate           09/01/25
 
   Credits: - The C++ code for our quaternion position update 
              using the Madgwick Filter is based on the paper, 
