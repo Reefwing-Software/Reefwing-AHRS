@@ -20,6 +20,8 @@ An Attitude and Heading Reference System (AHRS) takes information from the Inert
 
  Version 2.3.4 fixed spelling of Mahony. Issue identified by [Martin Budden](https://github.com/martinbudden).
 
+ Version 2.3.5 fixed a bug in complementaryUpdate().
+
  A complete description of this library is available in our Medium article: [Reefwing AHRS Arduino Library for Drones](https://reefwing.medium.com/reefwing-ahrs-arduino-library-for-drones-part-1-6d6457231764).
 
 ## Reefwing IMU Types

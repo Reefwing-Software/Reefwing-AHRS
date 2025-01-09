@@ -19,7 +19,7 @@
   2.3.2 Improved normalization for Madgwick       31/12/24
   2.3.3 Complementary update enhancements         05/01/25
   2.3.4 Corrected spelling for Mahony             09/01/25
-  2.3.5 Fixed bug in comlementaryUpdate           09/01/25
+  2.3.5 Fixed bug in complementaryUpdate          09/01/25
 
 
   Credits: - The C++ code for our quaternion position update 
