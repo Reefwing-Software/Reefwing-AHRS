@@ -5,8 +5,8 @@
   @copyright  Please see the accompanying LICENSE file.
 
   Code:        David Such
-  Version:     2.3.5
-  Date:        09/01/25
+  Version:     2.3.6
+  Date:        11/02/25
 
   1.0.0 Original Release.                         22/02/22
   1.1.0 Added NONE fusion option.                 25/05/22
@@ -20,6 +20,7 @@
   2.3.3 Complementary update enhancements         05/01/25
   2.3.4 Corrected spelling for Mahony             09/01/25
   2.3.5 Fixed bug in complementaryUpdate          09/01/25
+  2.3.6 Added support for Nano 33 BLE Rev. 2      11/02/25
 
 
   Credits: - The C++ code for our quaternion position update 
@@ -86,13 +87,14 @@ void imuMeasurementJacobianFunc(const float* state, float* jacobian) {
 ReefwingAHRS::ReefwingAHRS() { 
   _boardTypeStr[0] = "Nano";
   _boardTypeStr[1] = "Nano 33 BLE";
-  _boardTypeStr[2] = "Nano 33 BLE Sense";
-  _boardTypeStr[3] = "Nano 33 BLE Sense Rev 2";
-  _boardTypeStr[4] = "Seeed XIAO nRF52840 Sense";
-  _boardTypeStr[5] = "MKR Portenta H7";
-  _boardTypeStr[6] = "MKR Vidor 4000";
-  _boardTypeStr[7] = "Nano 33 IoT";
-  _boardTypeStr[8] = "Undefined Board Type";
+  _boardTypeStr[2] = "Nano 33 BLE Rev 2";
+  _boardTypeStr[3] = "Nano 33 BLE Sense";
+  _boardTypeStr[4] = "Nano 33 BLE Sense Rev 2";
+  _boardTypeStr[5] = "Seeed XIAO nRF52840 Sense";
+  _boardTypeStr[6] = "MKR Portenta H7";
+  _boardTypeStr[7] = "MKR Vidor 4000";
+  _boardTypeStr[8] = "Nano 33 IoT";
+  _boardTypeStr[9] = "Undefined Board Type";
 }
 
 void ReefwingAHRS::begin() {
@@ -101,7 +103,7 @@ void ReefwingAHRS::begin() {
   setImuType(ImuType::UNKNOWN);
   setDOF(DOF::DOF_6);
 
-  #if defined(ARDUINO_ARDUINO_NANO33BLE)    //  Nano 33 BLE found
+  #if defined(ARDUINO_ARDUINO_NANO33BLE)    //  Nano 33 BLE found - 4 possible variants
   
     byte error;
     
@@ -124,9 +126,19 @@ void ReefwingAHRS::begin() {
         setDOF(DOF::DOF_9);
       }
       else {
-        setBoardType(BoardType::NANO33BLE);
-        setImuType(ImuType::LSM9DS1);
-        setDOF(DOF::DOF_9);
+        Wire1.beginTransmission(LSM9DS1AG_ADDRESS);
+        error = Wire1.endTransmission();
+
+        if (error == 0) {
+          setBoardType(BoardType::NANO33BLE);
+          setImuType(ImuType::LSM9DS1);
+          setDOF(DOF::DOF_9);
+        }
+        else {
+          setBoardType(BoardType::NANO33BLE_R2);
+          setImuType(ImuType::BMI270_BMM150);
+          setDOF(DOF::DOF_9);
+        }
       }
     }
   #elif defined(ARDUINO_AVR_NANO)   
@@ -138,7 +150,7 @@ void ReefwingAHRS::begin() {
   #elif defined(ARDUINO_SAMD_NANO_33_IOT)
     setBoardType(BoardType::NANO33IOT);
   #elif defined(BOARD_NAME)
-    if (strncmp(BOARD_NAME, _boardTypeStr[4], 25) == 0) {
+    if (strncmp(BOARD_NAME, _boardTypeStr[5], 25) == 0) {
       setBoardType(BoardType::XIAO_SENSE);
       setImuType(ImuType::LSM6DS3);
       setDOF(DOF::DOF_6);

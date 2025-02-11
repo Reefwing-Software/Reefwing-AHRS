@@ -5,8 +5,8 @@
   @copyright  Please see the accompanying LICENSE file.
 
   Code:        David Such
-  Version:     2.3.5
-  Date:        09/01/25
+  Version:     2.3.6
+  Date:        11/02/25
 
   1.0.0 Original Release.                         22/02/22
   1.1.0 Added NONE fusion option.                 25/05/22
@@ -20,6 +20,7 @@
   2.3.3 Complementary update enhancements         05/01/25
   2.3.4 Corrected spelling for Mahony             09/01/25
   2.3.5 Fixed bug in complementaryUpdate          09/01/25
+  2.3.6 Added support for Nano 33 BLE Rev. 2      11/02/25
 
   Credits: - The C++ code for our quaternion position update 
              using the Madgwick Filter is based on the paper, 
@@ -59,6 +60,7 @@
 enum class BoardType {
   NANO = 0,
   NANO33BLE,
+  NANO33BLE_R2,
   NANO33BLE_SENSE_R1,
   NANO33BLE_SENSE_R2,
   XIAO_SENSE,
