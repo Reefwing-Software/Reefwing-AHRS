@@ -6,21 +6,27 @@ The Reefwing AHRS library provides an Attitude and Heading Reference System (AHR
 
 An Attitude and Heading Reference System (AHRS) takes information from the Inertial Measurement Unit (IMU) and processes it to provide reliable roll, pitch and yaw angles. Our library can be downloaded using the Arduino IDE Library Manager, or directly from the [Reefwing GitHub Repository](https://github.com/Reefwing-Software/Reefwing-AHRS).
 
- Version 1.1.0 of the library added the NONE option for Sensor Fusion. This option is used if you want Euler angles calculated but no sensor fusion filter applied. This release also fixed a bug in the Classic complementary filter calculation.
+## Version History
 
- Version 2.2.0 added support for the Nano 33 BLE Sense Rev. 2. Version 2 of the Nano 33 BLE Sense, replaces the LSM9DS1 9 axis IMU with a combination of two IMUs, the BMI270, a 6 axis gyro & accelerometer and the BMM150, a 3 axis magnetometer. In order to support the new hardware, it makes sense to separate the sensor processing from the sensor fusion algorithms. This library version also added the Kalman Filter Fusion option.
+ - Version 1.1.0 of the library added the NONE option for Sensor Fusion. This option is used if you want Euler angles calculated but no sensor fusion filter applied. This release also fixed a bug in the Classic complementary filter calculation.
 
- Version 2.3.0 added support for an Extended Kalman Filter and fixed a number of bugs.
+ - Version 2.2.0 added support for the Nano 33 BLE Sense Rev. 2. Version 2 of the Nano 33 BLE Sense, replaces the LSM9DS1 9 axis IMU with a combination of two IMUs, the BMI270, a 6 axis gyro & accelerometer and the BMM150, a 3 axis magnetometer. In order to support the new hardware, it makes sense to separate the sensor processing from the sensor fusion algorithms. This library version also added the Kalman Filter Fusion option.
 
- Version 2.3.1 corrects the bug in the open source Madgwick filter implementation as discovered by [Mark Uckermann](https://github.com/RideBeeline/madgwick-investigation/tree/main?tab=readme-ov-file#madgwicks-filter-implementation-analysis).
+ - Version 2.3.0 added support for an Extended Kalman Filter and fixed a number of bugs.
 
- Version 2.3.2 improved normalization code for the Madgwick and Mahoney filter implementations - contributed by [Martin Budden](https://github.com/martinbudden).
+ - Version 2.3.1 corrects the bug in the open source Madgwick filter implementation as discovered by [Mark Uckermann](https://github.com/RideBeeline/madgwick-investigation/tree/main?tab=readme-ov-file#madgwicks-filter-implementation-analysis).
 
- Version 2.3.3 enhanced `complementaryUpdate()`. Proper quaternion integration requires that all components are updated using their previous values before the entire quaternion is replaced. Issue identified by [Martin Budden](https://github.com/martinbudden).
+ - Version 2.3.2 improved normalization code for the Madgwick and Mahoney filter implementations - contributed by [Martin Budden](https://github.com/martinbudden).
 
- Version 2.3.4 fixed spelling of Mahony. Issue identified by [Martin Budden](https://github.com/martinbudden).
+ - Version 2.3.3 enhanced `complementaryUpdate()`. Proper quaternion integration requires that all components are updated using their previous values before the entire quaternion is replaced. Issue identified by [Martin Budden](https://github.com/martinbudden).
 
- Version 2.3.5 fixed a bug in complementaryUpdate().
+ - Version 2.3.4 fixed spelling of Mahony. Issue identified by [Martin Budden](https://github.com/martinbudden).
+
+ - Version 2.3.5 fixed a bug in complementaryUpdate().
+
+ - Version 2.3.6 Added support for Nano 33 BLE Rev. 2.
+
+ - Version 2.3.7 fixed a bug in the EKF and added a synthetic test sketch. Issue identified by [Patrick Duffy](https://github.com/patrickduffyETS).
 
  A complete description of this library is available in our Medium article: [Reefwing AHRS Arduino Library for Drones](https://reefwing.medium.com/reefwing-ahrs-arduino-library-for-drones-part-1-6d6457231764).
 

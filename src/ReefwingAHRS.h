@@ -5,8 +5,8 @@
   @copyright  Please see the accompanying LICENSE file.
 
   Code:        David Such
-  Version:     2.3.6
-  Date:        11/02/25
+  Version:     2.3.7
+  Date:        12/02/26
 
   1.0.0 Original Release.                         22/02/22
   1.1.0 Added NONE fusion option.                 25/05/22
@@ -21,6 +21,7 @@
   2.3.4 Corrected spelling for Mahony             09/01/25
   2.3.5 Fixed bug in complementaryUpdate          09/01/25
   2.3.6 Added support for Nano 33 BLE Rev. 2      11/02/25
+  2.3.7 EKF bug fix and test sketch added         12/02/26
 
   Credits: - The C++ code for our quaternion position update 
              using the Madgwick Filter is based on the paper, 
