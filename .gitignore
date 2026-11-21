@@ -1,2 +1,5 @@
 
 .vscode/c_cpp_properties.json
+
+# arduino-cli build output
+examples/*/build/

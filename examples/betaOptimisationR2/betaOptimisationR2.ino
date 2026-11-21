@@ -5,10 +5,11 @@
   @copyright  Please see the accompanying LICENSE file.
 
   Code:        David Such
-  Version:     1.0.0
-  Date:        22/11/24
+  Version:     1.0.1
+  Date:        22/11/26
 
   1.0.0 Original Release.                         22/11/24
+  1.0.1 Apply beta to filter, reset per candidate  22/11/26
 
   This sketch targets the Nano 33 BLE Rev. 2 and attempts 
   to determine the optimum beta for the Madgwick filter. 
@@ -32,6 +33,8 @@ SensorData data;
 #define MAX_BETA          0.5
 #define BETA_INC          0.01
 #define SAMPLES_PER_BETA  20
+#define SETTLE_MS         2000                                  // settling time allowed for each beta before sampling
+#define SAMPLE_DELAY_MS   15                                    // delay between IMU reads
 #define GYRO_MEAS_ERROR   M_PI * (40.0f / 180.0f)               // gyroscope measurement error in rads/s (default is 40 deg/s)
 #define DEFAULT_BETA      sqrt(3.0f / 4.0f) * GYRO_MEAS_ERROR
 
@@ -79,6 +82,7 @@ void setup() {
     //  Start processing IMU data.
     Serial.println("Starting Beta Optimisation.\n"); 
     Serial.println("Nano 33 BLE should remain motionless for duration of test.\n");
+    Serial.print("Each beta is given "); Serial.print(SETTLE_MS / 1000.0); Serial.println(" s to settle before sampling.\n");
     delay(1000); 
     Serial.print("Beta");  Serial.println("\tRMS Error");
   } 
@@ -88,6 +92,26 @@ void setup() {
   }
 
   while (beta < MAX_BETA) {
+    //  Start every candidate from the same filter state, apply the
+    //  candidate gain to the filter (previously the printed beta changed
+    //  but the filter kept its default gain), then allow the same settling
+    //  time before sampling so the comparison between betas is fair.
+    ahrs.reset();
+    ahrs.setFusionAlgorithm(SensorFusion::MADGWICK);
+    ahrs.setBeta(beta);
+
+    unsigned long settleStart = millis();
+
+    while (millis() - settleStart < SETTLE_MS) {
+      if (IMU.gyroscopeAvailable()) {  IMU.readGyroscope(data.gx, data.gy, data.gz);  }
+      if (IMU.accelerationAvailable()) {  IMU.readAcceleration(data.ax, data.ay, data.az);  }
+      if (IMU.magneticFieldAvailable()) {  IMU.readMagneticField(data.mx, data.my, data.mz);  }
+  
+      ahrs.setData(data);
+      ahrs.update();
+      delay(SAMPLE_DELAY_MS);  //  Wait for new sample
+    }
+
     while (ctr < SAMPLES_PER_BETA) {
       //  Check for new IMU data and update angles
       if (IMU.gyroscopeAvailable()) {  IMU.readGyroscope(data.gx, data.gy, data.gz);  }
@@ -102,7 +126,7 @@ void setup() {
       ctr++;
       // sampleArray[ctr] = ahrs.angles.pitch;
       // ctr++;
-      delay(15);  //  Wait for new sample
+      delay(SAMPLE_DELAY_MS);  //  Wait for new sample
     }
     ctr = 0;
     err = rms(sampleArray, SAMPLES_PER_BETA);

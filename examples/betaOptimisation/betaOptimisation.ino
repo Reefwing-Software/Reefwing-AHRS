@@ -5,8 +5,8 @@
   @copyright  Please see the accompanying LICENSE file.
 
   Code:        David Such
-  Version:     2.2.0
-  Date:        10/02/23
+  Version:     2.3.8
+  Date:        22/11/26
 
   1.0.0 Original Release.                         22/02/22
   1.1.0 Added NONE fusion option.                 25/05/22
@@ -15,6 +15,7 @@
   2.1.0 Updated Fusion Library                    30/12/22
   2.2.0 Add support for Nano 33 BLE Sense Rev. 2  10/02/23
   2.3.0 Fixed RMS Error calculation               22/11/24
+  2.3.8 Apply beta to filter, reset per candidate  22/11/26
 
   This sketch attempts to determine the optimum beta for the
   Madgwick filter. The Nano 33 BLE R1 should be placed flat and
@@ -37,6 +38,8 @@ ReefwingAHRS ahrs;
 #define MAX_BETA          0.5
 #define BETA_INC          0.01
 #define SAMPLES_PER_BETA  20
+#define SETTLE_MS         2000                                  // settling time allowed for each beta before sampling
+#define SAMPLE_DELAY_MS   10                                    // delay between IMU reads
 #define GYRO_MEAS_ERROR   M_PI * (40.0f / 180.0f)               // gyroscope measurement error in rads/s (default is 40 deg/s)
 #define DEFAULT_BETA      sqrt(3.0f / 4.0f) * GYRO_MEAS_ERROR
 
@@ -90,6 +93,7 @@ void setup() {
     //  Start processing IMU data.
     Serial.println("Starting Beta Optimisation.\n"); 
     Serial.println("Nano 33 BLE should remain motionless for duration of test.\n");
+    Serial.print("Each beta is given "); Serial.print(SETTLE_MS / 1000.0); Serial.println(" s to settle before sampling.\n");
     delay(1000); 
     Serial.print("Beta");  Serial.println("\tRMS Error");
   } 
@@ -99,6 +103,23 @@ void setup() {
   }
 
   while (beta < MAX_BETA) {
+    //  Start every candidate from the same filter state, apply the
+    //  candidate gain to the filter (previously the printed beta changed
+    //  but the filter kept its default gain), then allow the same settling
+    //  time before sampling so the comparison between betas is fair.
+    ahrs.reset();
+    ahrs.setFusionAlgorithm(SensorFusion::MADGWICK);
+    ahrs.setBeta(beta);
+
+    unsigned long settleStart = millis();
+
+    while (millis() - settleStart < SETTLE_MS) {
+      imu.updateSensorData();
+      ahrs.setData(imu.data);
+      ahrs.update();
+      delay(SAMPLE_DELAY_MS);  //  Wait for new sample
+    }
+
     while (ctr < SAMPLES_PER_BETA) {
       //  Check for new IMU data and update angles
       imu.updateSensorData();
@@ -110,7 +131,7 @@ void setup() {
       ctr++;
       // sampleArray[ctr] = ahrs.angles.pitch;
       // ctr++;
-      delay(10);  //  Wait for new sample
+      delay(SAMPLE_DELAY_MS);  //  Wait for new sample
     }
     ctr = 0;
     err = rms(sampleArray, SAMPLES_PER_BETA);

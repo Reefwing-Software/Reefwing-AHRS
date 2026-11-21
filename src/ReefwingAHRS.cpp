@@ -5,8 +5,8 @@
   @copyright  Please see the accompanying LICENSE file.
 
   Code:        David Such
-  Version:     2.3.7
-  Date:        12/02/26
+  Version:     2.3.8
+  Date:        22/11/26
 
   1.0.0 Original Release.                         22/02/22
   1.1.0 Added NONE fusion option.                 25/05/22
@@ -22,6 +22,7 @@
   2.3.5 Fixed bug in complementaryUpdate          09/01/25
   2.3.6 Added support for Nano 33 BLE Rev. 2      11/02/25
   2.3.7 EKF bug fix and test sketch added         12/02/26
+  2.3.8 Euler rate axis/unit & beta sketch fix    22/11/26
 
 
   Credits: - The C++ code for our quaternion position update 
@@ -193,8 +194,10 @@ void ReefwingAHRS::begin() {
 }
 
 void ReefwingAHRS::reset() {
-    // Reset timing variables
-    _lastUpdate = 0;
+    // Reset timing variables. Using the current time (rather than 0)
+    // means the first update() after a reset sees a sensible deltaT
+    // instead of the time elapsed since boot.
+    _lastUpdate = micros();
 
     // Reset AHRS parameters
     angles = {0.0f, 0.0f, 0.0f};             // Reset roll, pitch, and yaw
@@ -452,32 +455,39 @@ void ReefwingAHRS::tiltCompensatedYaw() {
 }
 
 void ReefwingAHRS::updateEulerAngles(float deltaT) {
+  //  Body gyro rates (p, q, r) about the X, Y and Z axes in rad/s.
+  //  _data holds degrees per second, so convert first.
+  SensorData g = gyroToRadians();
+  float p = g.gx;
+  float q = g.gy;
+  float r = g.gz;
+
   // Auxiliary variables to avoid repeated calculation
   float sinPHI = sin(angles.rollRadians);
   float cosPHI = cos(angles.rollRadians);
   float cosTHETA = cos(angles.pitchRadians);
   float tanTHETA = tan(angles.pitchRadians);
 
-  //  Convert gyro rates to Euler rates (ground reference frame)
-  //  Euler Roll Rate, ϕ ̇= p + sin(ϕ)tan(θ) × q + cos(ϕ)tan(θ) × r
-  //  Euler Pitch Rate, θ ̇= cos(ϕ) × q - sin(ϕ) × r
-  //  Euler Yaw Rate, ψ ̇= [sin(ϕ) × q]/cos(θ) + cos(ϕ)cos(θ) × r
+  //  Convert body gyro rates to Euler rates (ground reference frame)
+  //  Euler Roll Rate,  ϕ̇ = p + sin(ϕ)tan(θ) × q + cos(ϕ)tan(θ) × r
+  //  Euler Pitch Rate, θ̇ = cos(ϕ) × q - sin(ϕ) × r
+  //  Euler Yaw Rate,   ψ̇ = [sin(ϕ) × q + cos(ϕ) × r] / cos(θ)
 
-  float eulerRollRate = _data.gy + sinPHI * tanTHETA * _data.gx + cosPHI * tanTHETA * _data.gz;
-  float eulerPitchRate = cosPHI * _data.gx - sinPHI * _data.gz;
+  float eulerRollRate = p + sinPHI * tanTHETA * q + cosPHI * tanTHETA * r;
+  float eulerPitchRate = cosPHI * q - sinPHI * r;
   float eulerYawRate = 0.0f;
 
   if (fabs(cosTHETA) > 1e-6) {
-    // Avoid division by zero in yaw rate calculation
-    eulerYawRate = (sinPHI * _data.gx) / cosTHETA + cosPHI * cosTHETA * _data.gz;
+    // Avoid division by zero in yaw rate calculation (gimbal lock at θ = ±90°)
+    eulerYawRate = (sinPHI * q + cosPHI * r) / cosTHETA;
   }
 
   angles.rollRadians  += eulerRollRate * deltaT;    // Angle around the X-axis
   angles.pitchRadians += eulerPitchRate * deltaT;   // Angle around the Y-axis
-  angles.roll = angles.rollRadians * RAD_TO_DEG;
+  angles.yawRadians   += eulerYawRate * deltaT;     // Angle around the Z-axis
+  angles.roll  = angles.rollRadians * RAD_TO_DEG;
   angles.pitch = angles.pitchRadians * RAD_TO_DEG;
-  angles.yawRadians   += eulerYawRate * deltaT;     // Angle around the Z-axis 
-  angles.yaw = angles.yawRadians * RAD_TO_DEG;
+  angles.yaw   = angles.yawRadians * RAD_TO_DEG;
 }
 
 void ReefwingAHRS::complementaryUpdate(SensorData d, float deltaT) {
