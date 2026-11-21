@@ -28,6 +28,8 @@ An Attitude and Heading Reference System (AHRS) takes information from the Inert
 
  - Version 2.3.7 fixed a bug in the EKF and added a synthetic test sketch. Issue identified by [Patrick Duffy](https://github.com/patrickduffyETS).
 
+ - Version 2.3.8 fixed `updateEulerAngles()`, which is used by the `CLASSIC` and `NONE` fusion options. It integrated gyro rates in degrees per second as if they were radians per second, and used the Y gyro as the roll rate (and X as the pitch rate), so a 1 deg/s rotation about X for one second produced about 57 degrees of pitch instead of 1 degree of roll. The yaw rate term was also corrected. The `betaOptimisation` examples now actually apply each candidate beta to the Madgwick filter (previously the filter kept its default gain) and reset the filter between candidates. A synthetic `gyroAxisTest` sketch was added.
+
  A complete description of this library is available in our Medium article: [Reefwing AHRS Arduino Library for Drones](https://reefwing.medium.com/reefwing-ahrs-arduino-library-for-drones-part-1-6d6457231764).
 
 ## Reefwing IMU Types
@@ -391,4 +393,10 @@ RMS is often used to compare a theoretical prediction against an actual result. 
 `𝜽rms = √[(𝜽1² + 𝜽2² + … + 𝜽n²)/n]`
 
 This sketch in the examples folder can be used to assist with beta optimisation of your Madgwick filter. It will print to the serial port the value for beta between 0.0 and 0.5 and its associated static RMS error in CSV format. You can graph these results (using Excel for example). The sketch will record the beta with the minimum error in a static situation for pitch and roll. This sketch also demonstrates how you can adjust the filter gain in the Reefwing AHRS library.
+
+For each candidate beta the sketch resets the AHRS, applies the gain with `setBeta()`, lets the filter settle for `SETTLE_MS` (2 seconds by default) and then records `SAMPLES_PER_BETA` roll angles. Resetting and settling means every beta is judged from the same starting state. Note that because the board is static and the filter starts level, very small betas (which rely almost entirely on the gyro) will have low error over a short window; increase `SETTLE_MS` or `SAMPLES_PER_BETA` if you want drift to count against them.
+
+## Examples - gyroAxisTest.ino
+
+This sketch needs no IMU. It feeds a synthetic gyroscope signal into the `NONE` fusion path (which shares `updateEulerAngles()` with `CLASSIC`) one body axis at a time and checks that a rotation about X, Y and Z lands in roll, pitch and yaw respectively with the correct magnitude in degrees. A fourth case rolls to 90 degrees and then applies a body pitch rate, which should change yaw rather than pitch, to check the Euler rate transformation. It prints a PASS/FAIL line for each case. The `ekfTest` sketch does the same job for the Extended Kalman Filter using a synthetic roll/pitch motion profile.
 
