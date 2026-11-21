@@ -106,82 +106,181 @@ void ExtendedKalmanFilter::initialize(const float* initialState, const float* in
     }
 }
 
+// Invert a small n x n matrix with Gauss-Jordan elimination and partial
+// pivoting. Returns false if the matrix is singular. n is tiny (the
+// measurement dimension) so the O(n^3) cost is negligible.
+static bool invertMatrix(const float* a, float* inv, int n) {
+    float work[n * n];
+    memcpy(work, a, n * n * sizeof(float));
+
+    for (int i = 0; i < n * n; i++) {
+        inv[i] = 0.0f;
+    }
+    for (int i = 0; i < n; i++) {
+        inv[i * n + i] = 1.0f;
+    }
+
+    for (int col = 0; col < n; col++) {
+        // Find the pivot row
+        int pivot = col;
+        float maxAbs = fabsf(work[col * n + col]);
+        for (int r = col + 1; r < n; r++) {
+            float v = fabsf(work[r * n + col]);
+            if (v > maxAbs) { maxAbs = v; pivot = r; }
+        }
+        if (maxAbs < 1e-12f) {
+            return false;   // Singular
+        }
+        if (pivot != col) {
+            for (int c = 0; c < n; c++) {
+                float t = work[col * n + c]; work[col * n + c] = work[pivot * n + c]; work[pivot * n + c] = t;
+                t = inv[col * n + c];  inv[col * n + c]  = inv[pivot * n + c];  inv[pivot * n + c]  = t;
+            }
+        }
+        // Normalise the pivot row
+        float p = work[col * n + col];
+        for (int c = 0; c < n; c++) {
+            work[col * n + c] /= p;
+            inv[col * n + c]  /= p;
+        }
+        // Eliminate the column from the other rows
+        for (int r = 0; r < n; r++) {
+            if (r == col) continue;
+            float f = work[r * n + col];
+            if (f == 0.0f) continue;
+            for (int c = 0; c < n; c++) {
+                work[r * n + c] -= f * work[col * n + c];
+                inv[r * n + c]  -= f * inv[col * n + c];
+            }
+        }
+    }
+    return true;
+}
+
 void ExtendedKalmanFilter::predict(const float* controlInput, float deltaTime) {
+    if (state_ == nullptr) { return; }
+
+    const int n = stateSize_;
+
     // Predict the state: x = f(x, u, dt)
     if (stateTransitionFunc_) {
-        float tempState[stateSize_];
+        float tempState[n];
         stateTransitionFunc_(state_, controlInput, deltaTime, tempState);
-        memcpy(state_, tempState, stateSize_ * sizeof(float));
+        memcpy(state_, tempState, n * sizeof(float));
     }
 
     // Predict the covariance: P = F * P * F^T + Q
     if (stateJacobianFunc_) {
         stateJacobianFunc_(state_, controlInput, deltaTime, stateJacobian_);
 
-        // Compute P = F * P
-        for (int i = 0; i < stateSize_; i++) {
-            for (int j = 0; j < stateSize_; j++) {
-                tempBuffer1_[i * stateSize_ + j] = 0;
-                for (int k = 0; k < stateSize_; k++) {
-                    tempBuffer1_[i * stateSize_ + j] += stateJacobian_[i * stateSize_ + k] * covariance_[k * stateSize_ + j];
+        // tempBuffer1_ = F * P
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                float sum = 0.0f;
+                for (int k = 0; k < n; k++) {
+                    sum += stateJacobian_[i * n + k] * covariance_[k * n + j];
                 }
+                tempBuffer1_[i * n + j] = sum;
             }
         }
 
-        // Add process noise
-        for (int i = 0; i < stateSize_ * stateSize_; i++) {
-            covariance_[i] = tempBuffer1_[i] + processNoise_[i];
+        // P = (F * P) * F^T + Q
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                float sum = 0.0f;
+                for (int k = 0; k < n; k++) {
+                    sum += tempBuffer1_[i * n + k] * stateJacobian_[j * n + k];
+                }
+                covariance_[i * n + j] = sum + processNoise_[i * n + j];
+            }
         }
     }
 }
 
 void ExtendedKalmanFilter::update(const float* measurement) {
-    // Compute the measurement residual: y = z - h(x)
-    if (measurementFunc_) {
-        float tempMeasurement[measurementSize_];
-        measurementFunc_(state_, tempMeasurement);
-        for (int i = 0; i < measurementSize_; i++) {
-            residual_[i] = measurement[i] - tempMeasurement[i];
+    if (state_ == nullptr || !measurementFunc_ || !measurementJacobianFunc_) { return; }
+
+    const int n = stateSize_;
+    const int m = measurementSize_;
+
+    // Measurement residual: y = z - h(x)
+    float predictedMeasurement[m];
+    measurementFunc_(state_, predictedMeasurement);
+    for (int i = 0; i < m; i++) {
+        residual_[i] = measurement[i] - predictedMeasurement[i];
+    }
+
+    // Measurement Jacobian H (m x n)
+    measurementJacobianFunc_(state_, measurementJacobian_);
+
+    // tempBuffer2_ = P * H^T  (n x m)
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < m; j++) {
+            float sum = 0.0f;
+            for (int k = 0; k < n; k++) {
+                sum += covariance_[i * n + k] * measurementJacobian_[j * n + k];
+            }
+            tempBuffer2_[i * m + j] = sum;
         }
     }
 
-    // Compute the measurement Jacobian
-    if (measurementJacobianFunc_) {
-        measurementJacobianFunc_(state_, measurementJacobian_);
-
-        // Compute the residual covariance: S = H * P * H^T + R
-        for (int i = 0; i < measurementSize_; i++) {
-            for (int j = 0; j < measurementSize_; j++) {
-                residualCovariance_[i * measurementSize_ + j] = 0;
-                for (int k = 0; k < stateSize_; k++) {
-                    residualCovariance_[i * measurementSize_ + j] += measurementJacobian_[i * stateSize_ + k] * covariance_[k * stateSize_ + j];
-                }
-                residualCovariance_[i * measurementSize_ + j] += measurementNoise_[i * measurementSize_ + j];
+    // Residual covariance: S = H * (P * H^T) + R  (m x m)
+    for (int i = 0; i < m; i++) {
+        for (int j = 0; j < m; j++) {
+            float sum = 0.0f;
+            for (int k = 0; k < n; k++) {
+                sum += measurementJacobian_[i * n + k] * tempBuffer2_[k * m + j];
             }
-        }
-
-        // Compute the Kalman gain: K = P * H^T * S^-1
-        for (int i = 0; i < stateSize_; i++) {
-            for (int j = 0; j < measurementSize_; j++) {
-                kalmanGain_[i * measurementSize_ + j] = 0;
-                for (int k = 0; k < measurementSize_; k++) {
-                    kalmanGain_[i * measurementSize_ + j] += covariance_[i * stateSize_ + k] * measurementJacobian_[k * measurementSize_ + j];
-                }
-            }
-        }
-
-        // Update state: x = x + K * y
-        for (int i = 0; i < stateSize_; i++) {
-            for (int j = 0; j < measurementSize_; j++) {
-                state_[i] += kalmanGain_[i * measurementSize_ + j] * residual_[j];
-            }
-        }
-
-        // Update covariance: P = (I - K * H) * P
-        for (int i = 0; i < stateSize_ * stateSize_; i++) {
-            covariance_[i] -= kalmanGain_[i] * measurementJacobian_[i];
+            residualCovariance_[i * m + j] = sum + measurementNoise_[i * m + j];
         }
     }
+
+    // Kalman gain: K = (P * H^T) * S^-1  (n x m)
+    float sInverse[m * m];
+    if (!invertMatrix(residualCovariance_, sInverse, m)) {
+        return;   // S is singular: skip this measurement update
+    }
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < m; j++) {
+            float sum = 0.0f;
+            for (int k = 0; k < m; k++) {
+                sum += tempBuffer2_[i * m + k] * sInverse[k * m + j];
+            }
+            kalmanGain_[i * m + j] = sum;
+        }
+    }
+
+    // Update state: x = x + K * y
+    for (int i = 0; i < n; i++) {
+        float sum = 0.0f;
+        for (int j = 0; j < m; j++) {
+            sum += kalmanGain_[i * m + j] * residual_[j];
+        }
+        state_[i] += sum;
+    }
+
+    // Update covariance: P = (I - K * H) * P
+    // tempBuffer1_ = I - K * H  (n x n)
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            float sum = 0.0f;
+            for (int k = 0; k < m; k++) {
+                sum += kalmanGain_[i * m + k] * measurementJacobian_[k * n + j];
+            }
+            tempBuffer1_[i * n + j] = ((i == j) ? 1.0f : 0.0f) - sum;
+        }
+    }
+    float newCovariance[n * n];
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            float sum = 0.0f;
+            for (int k = 0; k < n; k++) {
+                sum += tempBuffer1_[i * n + k] * covariance_[k * n + j];
+            }
+            newCovariance[i * n + j] = sum;
+        }
+    }
+    memcpy(covariance_, newCovariance, n * n * sizeof(float));
 }
 
 const float* ExtendedKalmanFilter::getState() const {
