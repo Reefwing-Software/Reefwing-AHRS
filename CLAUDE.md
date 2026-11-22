@@ -57,7 +57,7 @@ The `ExtendedKalmanFilter` class is generic (2D state, 2D measurement). Within `
 - State transition via `imuStateTransitionFunc()` — integrates gyro rates
 - Measurement via `imuMeasurementFunc()` — direct angle from state
 - Jacobians (`imuStateJacobianFunc`, `imuMeasurementJacobianFunc`) return 2×2 identity matrices
-- EKF noise matrices (`Q[2][2]`, `R[2][2]`) are private members of `ReefwingAHRS`
+- EKF noise matrices (`Q[2][2]`, `R[2][2]`) are private members of `ReefwingAHRS`, set via `setProcessNoise()` / `setMeasurementNoise()` (diagonal or full 2×2 overloads). They are pushed into the EKF by `applyEkfNoise()` after every `ekf.initialize()` (in `begin()` and `reset()`), because `initialize()` restores the EKF's default noise
 
 ### Board Auto-Detection
 
