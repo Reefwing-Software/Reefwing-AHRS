@@ -30,6 +30,8 @@ An Attitude and Heading Reference System (AHRS) takes information from the Inert
 
  - Version 2.3.8 fixed `updateEulerAngles()`, which is used by the `CLASSIC` and `NONE` fusion options. It integrated gyro rates in degrees per second as if they were radians per second, and used the Y gyro as the roll rate (and X as the pitch rate), so a 1 deg/s rotation about X for one second produced about 57 degrees of pitch instead of 1 degree of roll. The yaw rate term was also corrected. The `betaOptimisation` examples now actually apply each candidate beta to the Madgwick filter (previously the filter kept its default gain) and reset the filter between candidates. A synthetic `gyroAxisTest` sketch was added.
 
+ - Version 2.3.9 fixed the Extended Kalman Filter update step. The Kalman gain was computed as P·Hᵀ without the S⁻¹ factor and the covariance update was done element by element, so with the default noise settings the accelerometer corrected only about 0.1% of the attitude error per sample. The filter therefore behaved like raw gyro integration (drifting with any gyro bias) and converged extremely slowly when the gyro was zeroed. The gain, covariance update and covariance prediction (F·P·Fᵀ + Q) are now computed correctly. Issue identified by [Patrick Duffy](https://github.com/patrickduffyETS) in [#23](https://github.com/Reefwing-Software/Reefwing-AHRS/issues/23).
+
  A complete description of this library is available in our Medium article: [Reefwing AHRS Arduino Library for Drones](https://reefwing.medium.com/reefwing-ahrs-arduino-library-for-drones-part-1-6d6457231764).
 
 ## Reefwing IMU Types
