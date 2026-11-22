@@ -34,6 +34,13 @@
 static constexpr float    DT    = 0.01f;   // 10 ms — matches a typical 100 Hz IMU update rate
 static constexpr uint32_t DT_US = 10000;   // Same period in microseconds, used by micros() ticker
 
+// EKF tuning. These are the library defaults (variances in radians squared), so the
+// output is unchanged unless you edit them. Q is the process noise added on every
+// predict step, R is the accelerometer angle measurement noise. Raising R (or lowering
+// Q) trusts the gyro more: smoother output, slower correction of drift.
+static constexpr float EKF_Q = 0.001f;
+static constexpr float EKF_R = 0.01f;
+
 // Optional synthetic imperfections — set any value non-zero to simulate sensor bias.
 // Gyro bias shifts the commanded rate fed to the EKF's predict step; accel bias
 // shifts the gravity-projected measurement fed to the EKF's update step.
@@ -134,6 +141,10 @@ void setup() {
   // without touching any hardware peripheral.
   ahrs.reset();
   ahrs.setFusionAlgorithm(SensorFusion::EXTENDED_KALMAN);
+
+  // Apply the EKF noise covariances (same variance for roll and pitch).
+  ahrs.setProcessNoise(EKF_Q, EKF_Q);
+  ahrs.setMeasurementNoise(EKF_R, EKF_R);
 
   lastTickUs = micros();
 

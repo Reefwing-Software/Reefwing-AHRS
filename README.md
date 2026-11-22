@@ -32,6 +32,8 @@ An Attitude and Heading Reference System (AHRS) takes information from the Inert
 
  - Version 2.3.9 fixed the Extended Kalman Filter update step. The Kalman gain was computed as P·Hᵀ without the S⁻¹ factor and the covariance update was done element by element, so with the default noise settings the accelerometer corrected only about 0.1% of the attitude error per sample. The filter therefore behaved like raw gyro integration (drifting with any gyro bias) and converged extremely slowly when the gyro was zeroed. The gain, covariance update and covariance prediction (F·P·Fᵀ + Q) are now computed correctly. Issue identified by [Patrick Duffy](https://github.com/patrickduffyETS) in [#23](https://github.com/Reefwing-Software/Reefwing-AHRS/issues/23).
 
+ - Version 2.4.0 added `setProcessNoise()` and `setMeasurementNoise()` so the Q and R noise covariance matrices of the Extended Kalman Filter can be tuned. It also fixed two older bugs: the board name table was one entry too small (since 2.3.6), so the constructor wrote past the end of it, and the EKF source included `<cstring>`, which stopped the library compiling for AVR boards such as the Arduino Nano (since 2.3.0).
+
  A complete description of this library is available in our Medium article: [Reefwing AHRS Arduino Library for Drones](https://reefwing.medium.com/reefwing-ahrs-arduino-library-for-drones-part-1-6d6457231764).
 
 ## Reefwing IMU Types
@@ -106,6 +108,22 @@ For the Madgwick filter there is a tradeoff in the beta parameter between accura
 Increasing beta (`GyroMeasError`) by about a factor of fifteen, the response time is reduced to ~2 seconds. We haven't noticed any reduction in solution accuracy with this reduced lag. This is essentially the I coefficient in a PID control sense; the bigger the feedback coefficient, the faster the solution converges, usually at the expense of accuracy. In any case, beta is the free parameter in the Madgwick filtering and fusion scheme.
 
 For the Madgwick Filter use either `setBeta()` or `setGyroMeasError()`, **but not both**, since they both effect beta. 
+
+ - Q and R for the **Extended Kalman Filter**. Q is the process noise covariance, which represents how much we distrust the gyro integration, and R is the measurement noise covariance, which represents how much we distrust the roll and pitch angles derived from the accelerometer. Both are 2 x 2 matrices ordered [roll, pitch], with variances in radians squared. The defaults are 0.001 on the diagonal of Q and 0.01 on the diagonal of R. What matters most is the ratio between them: a larger R (or smaller Q) trusts the gyro more, giving a smoother output that is less disturbed by vibration and linear acceleration but is slower to correct gyro drift. A smaller R (or larger Q) follows the accelerometer more closely.
+
+```c++
+ahrs.setFusionAlgorithm(SensorFusion::EXTENDED_KALMAN);
+ahrs.setProcessNoise(0.001f, 0.001f);     //  Q diagonal: roll, pitch
+ahrs.setMeasurementNoise(0.05f, 0.05f);   //  R diagonal: roll, pitch
+
+//  or provide the full matrices
+const float Q[2][2] = {{0.001f, 0.0f}, {0.0f, 0.001f}};
+const float R[2][2] = {{0.05f, 0.0f}, {0.0f, 0.05f}};
+ahrs.setProcessNoise(Q);
+ahrs.setMeasurementNoise(R);
+```
+
+Both setters return `false` and leave the filter unchanged if a variance is invalid (Q must be zero or positive, R must be positive). The values are kept across `begin()` and `reset()`. Note that Q is added to the state covariance on every update and is not scaled by the time step, so if you change your IMU sample rate significantly you may need to retune. With the defaults at a 100 Hz update rate the filter settles on a new angle in about 100 ms.
 
 ## Inertial Coordinate System and NED
 
@@ -400,5 +418,5 @@ For each candidate beta the sketch resets the AHRS, applies the gain with `setBe
 
 ## Examples - gyroAxisTest.ino
 
-This sketch needs no IMU. It feeds a synthetic gyroscope signal into the `NONE` fusion path (which shares `updateEulerAngles()` with `CLASSIC`) one body axis at a time and checks that a rotation about X, Y and Z lands in roll, pitch and yaw respectively with the correct magnitude in degrees. A fourth case rolls to 90 degrees and then applies a body pitch rate, which should change yaw rather than pitch, to check the Euler rate transformation. It prints a PASS/FAIL line for each case. The `ekfTest` sketch does the same job for the Extended Kalman Filter using a synthetic roll/pitch motion profile.
+This sketch needs no IMU. It feeds a synthetic gyroscope signal into the `NONE` fusion path (which shares `updateEulerAngles()` with `CLASSIC`) one body axis at a time and checks that a rotation about X, Y and Z lands in roll, pitch and yaw respectively with the correct magnitude in degrees. A fourth case rolls to 90 degrees and then applies a body pitch rate, which should change yaw rather than pitch, to check the Euler rate transformation. It prints a PASS/FAIL line for each case. It is too large for the 30 KB flash of the classic Arduino Nano, so run it on one of the 32-bit boards. The `ekfTest` sketch does the same job for the Extended Kalman Filter using a synthetic roll/pitch motion profile.
 

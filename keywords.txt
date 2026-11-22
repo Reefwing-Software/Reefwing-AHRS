@@ -36,6 +36,8 @@ setBeta KEYWORD2
 setGyroMeasError    KEYWORD2
 setKp   KEYWORD2
 setKi   KEYWORD2
+setProcessNoise KEYWORD2
+setMeasurementNoise KEYWORD2
 setDeclination  KEYWORD2
 setData KEYWORD2
 setDOF  KEYWORD2

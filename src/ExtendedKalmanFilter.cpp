@@ -3,7 +3,7 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-#include <cstring>
+#include <string.h>   // not <cstring>: the AVR toolchain has no C++ standard library headers
 #include "ExtendedKalmanFilter.h"
 
 ExtendedKalmanFilter::ExtendedKalmanFilter()
@@ -289,6 +289,26 @@ const float* ExtendedKalmanFilter::getState() const {
 
 const float* ExtendedKalmanFilter::getCovariance() const {
     return covariance_;
+}
+
+const float* ExtendedKalmanFilter::getProcessNoise() const {
+    return processNoise_;
+}
+
+const float* ExtendedKalmanFilter::getMeasurementNoise() const {
+    return measurementNoise_;
+}
+
+void ExtendedKalmanFilter::setProcessNoise(const float* processNoise) {
+    // Ignored until initialize() has allocated the filter
+    if (processNoise_ == nullptr || processNoise == nullptr) { return; }
+    memcpy(processNoise_, processNoise, stateSize_ * stateSize_ * sizeof(float));
+}
+
+void ExtendedKalmanFilter::setMeasurementNoise(const float* measurementNoise) {
+    // Ignored until initialize() has allocated the filter
+    if (measurementNoise_ == nullptr || measurementNoise == nullptr) { return; }
+    memcpy(measurementNoise_, measurementNoise, measurementSize_ * measurementSize_ * sizeof(float));
 }
 
 void ExtendedKalmanFilter::setStateTransition(void (*stateTransitionFunc)(const float*, const float*, float, float*)) {

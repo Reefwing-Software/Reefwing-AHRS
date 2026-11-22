@@ -5,7 +5,7 @@
   @copyright  Please see the accompanying LICENSE file.
 
   Code:        David Such
-  Version:     2.3.9
+  Version:     2.4.0
   Date:        22/11/26
 
   1.0.0 Original Release.                         22/02/22
@@ -24,6 +24,7 @@
   2.3.7 EKF bug fix and test sketch added         12/02/26
   2.3.8 Euler rate axis/unit & beta sketch fix    22/11/26
   2.3.9 EKF gain & covariance update fixed        22/11/26
+  2.4.0 Added EKF Q and R noise setters           22/11/26
 
   Credits: - The C++ code for our quaternion position update 
              using the Madgwick Filter is based on the paper, 
@@ -116,6 +117,15 @@ class ReefwingAHRS {
     void setGyroMeasError(float gme);
     void setKp(float p);
     void setKi(float i);
+
+    //  Extended Kalman Filter noise covariances (variances in radians squared).
+    //  Two floats set the roll and pitch diagonal; the array form sets the
+    //  full 2x2 matrix. Returns false (and changes nothing) if a variance is
+    //  invalid: Q must be >= 0 and R must be > 0 on the diagonal.
+    bool setProcessNoise(float qRoll, float qPitch);
+    bool setProcessNoise(const float q[2][2]);
+    bool setMeasurementNoise(float rRoll, float rPitch);
+    bool setMeasurementNoise(const float r[2][2]);
     void setDeclination(float dec);
     void setData(SensorData d, bool axisAlign = true);
     void setDOF(DOF d);
@@ -153,14 +163,16 @@ class ReefwingAHRS {
     SensorData _data;   //  Sensor Data: gyro - DPS, accel - g's, mag - gauss
     Quaternion _q;      //  Quaternion used for AHRS update
 
-    const char* _boardTypeStr[9];
+    const char* _boardTypeStr[10];   //  One entry per BoardType, including NOT_DEFINED
 
     // Extended Kalman Filter specific variables
     ExtendedKalmanFilter ekf; // EKF instance
     float state[2];           // State vector [roll, pitch]
     float P[2][2];            // Error covariance matrix
-    float Q[2][2];            // Process noise covariance
-    float R[2][2];            // Measurement noise covariance
+    float Q[2][2] = {{1e-3f, 0.0f}, {0.0f, 1e-3f}};   // Process noise covariance
+    float R[2][2] = {{1e-2f, 0.0f}, {0.0f, 1e-2f}};   // Measurement noise covariance
+
+    void applyEkfNoise();     // Push Q and R into the EKF instance
 
 };
 

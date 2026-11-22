@@ -5,7 +5,7 @@
   @copyright  Please see the accompanying LICENSE file.
 
   Code:        David Such
-  Version:     2.3.9
+  Version:     2.4.0
   Date:        22/11/26
 
   1.0.0 Original Release.                         22/02/22
@@ -24,6 +24,7 @@
   2.3.7 EKF bug fix and test sketch added         12/02/26
   2.3.8 Euler rate axis/unit & beta sketch fix    22/11/26
   2.3.9 EKF gain & covariance update fixed        22/11/26
+  2.4.0 Added EKF Q and R noise setters           22/11/26
 
 
   Credits: - The C++ code for our quaternion position update 
@@ -192,6 +193,7 @@ void ReefwingAHRS::begin() {
   ekf.setMeasurementFunction(imuMeasurementFunc);
   ekf.setStateTransitionJacobian(imuStateJacobianFunc);
   ekf.setMeasurementJacobian(imuMeasurementJacobianFunc);
+  applyEkfNoise();   // initialize() restores default noise, so reapply Q and R
 }
 
 void ReefwingAHRS::reset() {
@@ -221,6 +223,7 @@ void ReefwingAHRS::reset() {
     ekf.setMeasurementFunction(imuMeasurementFunc);        // Reattach measurement function
     ekf.setStateTransitionJacobian(imuStateJacobianFunc);  // Reattach state Jacobian
     ekf.setMeasurementJacobian(imuMeasurementJacobianFunc); // Reattach measurement Jacobian
+    applyEkfNoise();                                       // Keep any Q and R set by the user
 
     // Reset other variables if required (e.g., specific to filters)
     _fusion = SensorFusion::MADGWICK; // Default filter, can be overridden later
@@ -343,6 +346,48 @@ void ReefwingAHRS::setKp(float p) {
 
 void ReefwingAHRS::setKi(float i) {
   _Ki = i;
+}
+
+bool ReefwingAHRS::setProcessNoise(float qRoll, float qPitch) {
+  const float q[2][2] = {{qRoll, 0.0f}, {0.0f, qPitch}};
+
+  return setProcessNoise(q);
+}
+
+bool ReefwingAHRS::setProcessNoise(const float q[2][2]) {
+  //  Process noise variances cannot be negative (or NaN)
+  if (!(q[0][0] >= 0.0f) || !(q[1][1] >= 0.0f)) { return false; }
+
+  for (int i = 0; i < 2; i++) {
+    for (int j = 0; j < 2; j++) { Q[i][j] = q[i][j]; }
+  }
+  applyEkfNoise();
+  return true;
+}
+
+bool ReefwingAHRS::setMeasurementNoise(float rRoll, float rPitch) {
+  const float r[2][2] = {{rRoll, 0.0f}, {0.0f, rPitch}};
+
+  return setMeasurementNoise(r);
+}
+
+bool ReefwingAHRS::setMeasurementNoise(const float r[2][2]) {
+  //  Measurement noise variances must be positive, otherwise the
+  //  residual covariance can become singular.
+  if (!(r[0][0] > 0.0f) || !(r[1][1] > 0.0f)) { return false; }
+
+  for (int i = 0; i < 2; i++) {
+    for (int j = 0; j < 2; j++) { R[i][j] = r[i][j]; }
+  }
+  applyEkfNoise();
+  return true;
+}
+
+void ReefwingAHRS::applyEkfNoise() {
+  //  The EKF ignores these calls until it has been initialised by
+  //  begin() or reset(), which both call applyEkfNoise() afterwards.
+  ekf.setProcessNoise(&Q[0][0]);
+  ekf.setMeasurementNoise(&R[0][0]);
 }
 
 void ReefwingAHRS::setDeclination(float dec) {

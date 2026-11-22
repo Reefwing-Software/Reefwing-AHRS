@@ -30,9 +30,21 @@ public:
     void setStateTransitionJacobian(void (*stateJacobianFunc)(const float*, const float*, float, float*));
     void setMeasurementJacobian(void (*measurementJacobianFunc)(const float*, float*));
 
+    // Set the noise covariance matrices (row-major, copied into the filter).
+    // Process noise Q is stateSize x stateSize and is added to the covariance on
+    // every predict(). Measurement noise R is measurementSize x measurementSize.
+    // Call these after initialize(), which resets both to their defaults
+    // (Q = 1e-3 on the diagonal, R = 1e-2 on the diagonal).
+    void setProcessNoise(const float* processNoise);
+    void setMeasurementNoise(const float* measurementNoise);
+
     // Accessors for the current state and covariance
     const float* getState() const;
     const float* getCovariance() const;
+
+    // Accessors for the noise covariance matrices (nullptr before initialize())
+    const float* getProcessNoise() const;
+    const float* getMeasurementNoise() const;
 
 private:
     int stateSize_;        // Number of state variables
