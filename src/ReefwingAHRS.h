@@ -5,7 +5,7 @@
   @copyright  Please see the accompanying LICENSE file.
 
   Code:        David Such
-  Version:     2.4.0
+  Version:     2.4.1
   Date:        22/11/26
 
   1.0.0 Original Release.                         22/02/22
@@ -25,6 +25,7 @@
   2.3.8 Euler rate axis/unit & beta sketch fix    22/11/26
   2.3.9 EKF gain & covariance update fixed        22/11/26
   2.4.0 Added EKF Q and R noise setters           22/11/26
+  2.4.1 Fixed build on boards without BOARD_NAME  22/11/26
 
   Credits: - The C++ code for our quaternion position update 
              using the Madgwick Filter is based on the paper, 
@@ -50,10 +51,6 @@
 
 #define DEG_TO_RAD 0.01745329251994   //  PI/180 * degrees
 #define RAD_TO_DEG 57.2957795130823   //  180/PI * radians
-
-#ifndef BOARD_NAME
-#define BOARD_NAME 
-#endif
 
 /******************************************************************
  *

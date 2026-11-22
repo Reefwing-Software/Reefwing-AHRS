@@ -34,6 +34,8 @@ An Attitude and Heading Reference System (AHRS) takes information from the Inert
 
  - Version 2.4.0 added `setProcessNoise()` and `setMeasurementNoise()` so the Q and R noise covariance matrices of the Extended Kalman Filter can be tuned. It also fixed two older bugs: the board name table was one entry too small (since 2.3.6), so the constructor wrote past the end of it, and the EKF source included `<cstring>`, which stopped the library compiling for AVR boards such as the Arduino Nano (since 2.3.0).
 
+ - Version 2.4.1 fixed a compile error on boards whose core does not define `BOARD_NAME` (for example the Arduino Uno). The library no longer defines an empty `BOARD_NAME` macro of its own.
+
  A complete description of this library is available in our Medium article: [Reefwing AHRS Arduino Library for Drones](https://reefwing.medium.com/reefwing-ahrs-arduino-library-for-drones-part-1-6d6457231764).
 
 ## Reefwing IMU Types
