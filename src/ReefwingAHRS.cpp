@@ -5,7 +5,7 @@
   @copyright  Please see the accompanying LICENSE file.
 
   Code:        David Such
-  Version:     2.4.0
+  Version:     2.4.1
   Date:        22/11/26
 
   1.0.0 Original Release.                         22/02/22
@@ -25,6 +25,7 @@
   2.3.8 Euler rate axis/unit & beta sketch fix    22/11/26
   2.3.9 EKF gain & covariance update fixed        22/11/26
   2.4.0 Added EKF Q and R noise setters           22/11/26
+  2.4.1 Fixed build on boards without BOARD_NAME  22/11/26
 
 
   Credits: - The C++ code for our quaternion position update 
@@ -153,7 +154,7 @@ void ReefwingAHRS::begin() {
     setBoardType(BoardType::VIDOR_4000);
   #elif defined(ARDUINO_SAMD_NANO_33_IOT)
     setBoardType(BoardType::NANO33IOT);
-  #elif defined(BOARD_NAME)
+  #elif defined(BOARD_NAME)   //  Only some cores (e.g. mbed) define BOARD_NAME as a string
     if (strncmp(BOARD_NAME, _boardTypeStr[5], 25) == 0) {
       setBoardType(BoardType::XIAO_SENSE);
       setImuType(ImuType::LSM6DS3);
