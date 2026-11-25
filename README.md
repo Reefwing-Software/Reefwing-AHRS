@@ -36,6 +36,8 @@ An Attitude and Heading Reference System (AHRS) takes information from the Inert
 
  - Version 2.4.1 fixed a compile error on boards whose core does not define `BOARD_NAME` (for example the Arduino Uno). The library no longer defines an empty `BOARD_NAME` macro of its own.
 
+ - Version 2.4.2 fixed a jump in the Extended Kalman Filter when roll crosses ±180 degrees. The gyro prediction (for example +181°) and the accelerometer roll (−179°) describe the same attitude but were treated as 360° apart, which pulled the estimate a long way off for several updates. The roll correction now uses the shortest signed angle and the reported roll is wrapped to ±180°. `ekfTest` now rolls through the seam in both directions and prints a PASS/FAIL summary. `library.properties` now declares the `Reefwing_imuTypes` dependency, so the Library Manager offers to install it with this library.
+
  A complete description of this library is available in our Medium article: [Reefwing AHRS Arduino Library for Drones](https://reefwing.medium.com/reefwing-ahrs-arduino-library-for-drones-part-1-6d6457231764).
 
 ## Reefwing IMU Types
@@ -76,7 +78,7 @@ We have also included definitions of the I²C addresses for the following device
 
 ## Library Dependencies
 
-To use the Reefwing AHRS Library, you need to also install the Reefwing_imuTypes library. Both of these are able to be installed from the Arduino IDE Library Manager.
+To use the Reefwing AHRS Library, you need to also install the Reefwing_imuTypes library. Both of these are able to be installed from the Arduino IDE Library Manager. From version 2.4.2 the dependency is declared in `library.properties`, so the Library Manager will offer to install Reefwing_imuTypes for you when you install or update Reefwing AHRS.
 
  ## Sensor Fusion & Free Parameters
 

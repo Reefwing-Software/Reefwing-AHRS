@@ -5,8 +5,8 @@
   @copyright  Please see the accompanying LICENSE file.
 
   Code:        David Such
-  Version:     2.4.1
-  Date:        22/11/26
+  Version:     2.4.2
+  Date:        25/11/26
 
   1.0.0 Original Release.                         22/02/22
   1.1.0 Added NONE fusion option.                 25/05/22
@@ -26,6 +26,7 @@
   2.3.9 EKF gain & covariance update fixed        22/11/26
   2.4.0 Added EKF Q and R noise setters           22/11/26
   2.4.1 Fixed build on boards without BOARD_NAME  22/11/26
+  2.4.2 EKF roll wrap at 180 deg, depends added   25/11/26
 
   Credits: - The C++ code for our quaternion position update 
              using the Madgwick Filter is based on the paper, 

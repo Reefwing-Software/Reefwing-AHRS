@@ -5,8 +5,8 @@
   @copyright  Please see the accompanying LICENSE file.
 
   Code:        David Such
-  Version:     2.4.1
-  Date:        22/11/26
+  Version:     2.4.2
+  Date:        25/11/26
 
   1.0.0 Original Release.                         22/02/22
   1.1.0 Added NONE fusion option.                 25/05/22
@@ -26,6 +26,7 @@
   2.3.9 EKF gain & covariance update fixed        22/11/26
   2.4.0 Added EKF Q and R noise setters           22/11/26
   2.4.1 Fixed build on boards without BOARD_NAME  22/11/26
+  2.4.2 EKF roll wrap at 180 deg, depends added   25/11/26
 
 
   Credits: - The C++ code for our quaternion position update 
@@ -444,6 +445,15 @@ Quaternion ReefwingAHRS::getQuaternion() {
  * 
  ******************************************************************/
 
+//  Wrap an angle in radians to the range [-PI, PI)
+static float wrapAngle(float angle) {
+  const float pi = 3.14159265358979f;
+
+  angle = fmodf(angle + pi, 2.0f * pi);
+  if (angle < 0.0f) { angle += 2.0f * pi; }
+  return angle - pi;
+}
+
 void ReefwingAHRS::extendedKalmanUpdate(SensorData d, float deltaT) {
   // Pre-process sensor data
   float accRoll = atan2(d.ay, d.az);
@@ -452,16 +462,24 @@ void ReefwingAHRS::extendedKalmanUpdate(SensorData d, float deltaT) {
   // Define control input (gyroscope rates in rad/s)
   float controlInput[2] = {d.gx * DEG_TO_RAD, d.gy * DEG_TO_RAD};
 
-  // Define measurement (accelerometer angles)
-  float measurement[2] = {accRoll, accPitch};
-
-  // Call the EKF predict and update steps
+  // Predict step: integrate the gyro rates
   ekf.predict(controlInput, deltaT);
+
+  // Roll is circular: +181 and -179 degrees are the same attitude, but the
+  // accelerometer always reports roll in (-180, 180] while the predicted
+  // state is not limited to that range. Express the roll measurement as the
+  // predicted roll plus the shortest signed difference, so the correction
+  // never takes the long way round when roll crosses +/-180 degrees.
+  const float* predicted = ekf.getState();
+  float measurement[2] = {predicted[0] + wrapAngle(accRoll - predicted[0]), accPitch};
+
+  // Update step: correct with the accelerometer angles
   ekf.update(measurement);
 
-  // Extract the updated state (roll and pitch)
+  // Extract the updated state (roll and pitch). The filter state is left
+  // unwrapped so it stays continuous; the reported roll is wrapped.
   const float* state = ekf.getState();
-  float roll = state[0];  
+  float roll = wrapAngle(state[0]);
   float pitch = state[1];
 
   // Update angles
