@@ -11,6 +11,9 @@
   - Lets you A/B test the existing EKF implementation vs a patched one by swapping the
     library code and re-uploading the same sketch.
   - Prints: truth roll/pitch, accel-derived roll/pitch, EKF roll/pitch, and the synthetic IMU.
+  - Rolls through +180 and -180 degrees in both directions, to check the EKF does not jump
+    when the accelerometer roll angle wraps (fixed in 2.4.2).
+  - Finishes with a summary of the largest roll and pitch error and a PASS/FAIL verdict.
 
   Key details (matches ReefwingAHRS.cpp EKF path)
   - Reefwing EKF expects gyro inputs d.gx, d.gy in *deg/s* (it converts to rad/s internally).
@@ -21,7 +24,8 @@
   - It calls ahrs.reset() to initialize the EKF with the library's default init.
 
   Output
-  - Serial @ 115200. Use Serial Plotter or capture CSV.
+  - Serial @ 115200. Use Serial Plotter or capture CSV. Roll columns are in (-180, 180].
+  - The summary lines at the end start with '#' so CSV tools can skip them.
 
 ******************************************************************************************/
 
@@ -40,6 +44,10 @@ static constexpr uint32_t DT_US = 10000;   // Same period in microseconds, used 
 // Q) trusts the gyro more: smoother output, slower correction of drift.
 static constexpr float EKF_Q = 0.001f;
 static constexpr float EKF_R = 0.01f;
+
+// Largest EKF error (degrees) allowed for a PASS in the end-of-run summary. With the
+// bias constants below left at zero the error should be a small fraction of a degree.
+static constexpr float PASS_TOL_DEG = 1.0f;
 
 // Optional synthetic imperfections — set any value non-zero to simulate sensor bias.
 // Gyro bias shifts the commanded rate fed to the EKF's predict step; accel bias
@@ -66,7 +74,17 @@ RatesDps commandedRates(float t) {
   // 8–10s:  hold
   // 10–12s: roll back to 0 deg (-22.5 dps for 2s)
   // 12–14s: pitch back to 0 deg (-15 dps for 2s)
-  // 14s+:   hold (should read 0/0 if EKF has no accumulated drift)
+  // 14–16s: hold (should read 0/0 if EKF has no accumulated drift)
+  //
+  // Roll through the +/-180 deg seam, where the accelerometer roll angle wraps:
+  // 16–20s: roll to +200 deg (+50 dps for 4s) — crosses +180 at 19.6s, reads -160
+  // 20–22s: hold
+  // 22–26s: roll back to 0 deg (-50 dps for 4s) — crosses the seam the other way
+  // 26–28s: hold
+  // 28–32s: roll to -200 deg (-50 dps for 4s) — crosses -180 at 31.6s, reads +160
+  // 32–34s: hold
+  // 34–38s: roll back to 0 deg (+50 dps for 4s)
+  // 38s+:   hold (should read 0/0)
 
   if (t < 2.0f)  return {0.0f, 0.0f};
   if (t < 4.0f)  return {+22.5f, 0.0f};
@@ -75,6 +93,14 @@ RatesDps commandedRates(float t) {
   if (t < 10.0f) return {0.0f, 0.0f};
   if (t < 12.0f) return {-22.5f, 0.0f};
   if (t < 14.0f) return {0.0f, -15.0f};
+  if (t < 16.0f) return {0.0f, 0.0f};
+  if (t < 20.0f) return {+50.0f, 0.0f};
+  if (t < 22.0f) return {0.0f, 0.0f};
+  if (t < 26.0f) return {-50.0f, 0.0f};
+  if (t < 28.0f) return {0.0f, 0.0f};
+  if (t < 32.0f) return {-50.0f, 0.0f};
+  if (t < 34.0f) return {0.0f, 0.0f};
+  if (t < 38.0f) return {+50.0f, 0.0f};
   return {0.0f, 0.0f};
 }
 
@@ -86,6 +112,15 @@ static constexpr float PI_F = 3.14159265358979323846f;
 
 inline float degToRad(float d) { return d * (PI_F / 180.0f); }
 inline float radToDeg(float r) { return r * (180.0f / PI_F); }
+
+// Wrap an angle in degrees to [-180, 180). Used to report the truth roll in the same
+// range as the EKF and accelerometer roll, and to compare angles across the seam
+// (+179 and -179 degrees are 2 degrees apart, not 358).
+inline float wrapDeg(float a) {
+  a = fmodf(a + 180.0f, 360.0f);
+  if (a < 0.0f) { a += 360.0f; }
+  return a - 180.0f;
+}
 
 // Project the gravity vector (1 g down) into the sensor body frame given known
 // roll and pitch angles (radians).  The resulting (ax, ay, az) values match the
@@ -127,9 +162,16 @@ float truthRoll  = 0.0f;
 float truthPitch = 0.0f;
 
 // Timing — lastTickUs is the micros() timestamp of the previous step.
-// tSec is the accumulated simulation time in seconds.
+// tick counts simulation steps and tSec is the simulation time in seconds. tSec is
+// derived from the integer tick count rather than accumulated, so the profile
+// segments are an exact number of steps long and every move returns exactly to zero.
 uint32_t lastTickUs = 0;
+uint32_t tick       = 0;
 float    tSec       = 0.0f;
+
+// Largest absolute error between the EKF and truth seen so far (degrees).
+float maxRollErrDeg  = 0.0f;
+float maxPitchErrDeg = 0.0f;
 
 void setup() {
   Serial.begin(115200);
@@ -163,7 +205,8 @@ void loop() {
     return;
   }
   lastTickUs += DT_US;
-  tSec += DT;
+  tick++;
+  tSec = tick * DT;
 
   // Look up commanded angular rates for this simulation instant.
   const RatesDps r = commandedRates(tSec);
@@ -209,10 +252,18 @@ void loop() {
   const float ekfRollDeg  = ahrs.angles.roll;
   const float ekfPitchDeg = ahrs.angles.pitch;
 
+  // Truth roll in the same (-180, 180] range the EKF and accelerometer report.
+  const float truthRollDeg = wrapDeg(radToDeg(truthRoll));
+
+  // Track the worst error for the end-of-run summary. The roll error is wrapped so
+  // that readings either side of the +/-180 degree seam compare correctly.
+  maxRollErrDeg  = max(maxRollErrDeg,  (float)fabs(wrapDeg(ekfRollDeg - truthRollDeg)));
+  maxPitchErrDeg = max(maxPitchErrDeg, (float)fabs(ekfPitchDeg - radToDeg(truthPitch)));
+
   // Emit one CSV row per tick.  3 d.p. on angles is sufficient (0.001° resolution);
   // 4 d.p. on accel to capture the small off-axis components near level.
   Serial.print(tSec, 3); Serial.print(',');
-  Serial.print(radToDeg(truthRoll), 3); Serial.print(',');
+  Serial.print(truthRollDeg, 3); Serial.print(',');
   Serial.print(radToDeg(truthPitch), 3); Serial.print(',');
   Serial.print(radToDeg(accRoll), 3); Serial.print(',');
   Serial.print(radToDeg(accPitch), 3); Serial.print(',');
@@ -224,10 +275,18 @@ void loop() {
   Serial.print(d.ay, 4); Serial.print(',');
   Serial.println(d.az, 4);
 
-  // Halt after 20 s.  The motion profile is complete by 14 s; the extra 6 s lets
+  // Halt after 40 s.  The motion profile is complete by 38 s; the extra 2 s lets
   // you observe steady-state EKF behaviour.
   // Note: boards with a hardware watchdog timer may reset instead of halting here.
-  if (tSec > 20.0f) {
+  if (tSec > 40.0f) {
+    const bool pass = (maxRollErrDeg < PASS_TOL_DEG) && (maxPitchErrDeg < PASS_TOL_DEG);
+
+    Serial.print(F("# max roll error "));  Serial.print(maxRollErrDeg, 3);
+    Serial.print(F(" deg, max pitch error ")); Serial.print(maxPitchErrDeg, 3);
+    Serial.println(F(" deg"));
+    Serial.print(pass ? F("# PASS") : F("# FAIL"));
+    Serial.print(F(" (tolerance ")); Serial.print(PASS_TOL_DEG, 1); Serial.println(F(" deg)"));
+
     while (true) { delay(1000); }
   }
 }
